@@ -4,7 +4,7 @@ var up = false
 var down = false
 var right = false
 var left = false
-var page = 'start'
+var page = 'main'
 var step = 1
 var roll = undefined
 var moveItem = false
@@ -12,6 +12,9 @@ var movingItem = undefined
 var mousex = 0
 var mousey = 0
 var swap = false
+var enteringDungeon = false
+var time = 0
+var room = 0
 function Roll(dice, min=true){
     var a = 1
     var total = 0
@@ -45,6 +48,7 @@ var manImg = undefined
 var speechImg = undefined
 var moneyImg = undefined
 var fistImg = undefined
+var pathImg = undefined
 const playerImg = new Image()
 playerImg.src = 'hero.png'
 setTimeout(() => {shopImg = new Image(); shopImg.src = 'shop.png'},100)
@@ -54,6 +58,7 @@ setTimeout(() => {manImg = new Image(); manImg.src = 'man.png'}, 400)
 setTimeout(() => {speechImg = new Image(); speechImg.src = 'chat.png'}, 500)
 setTimeout(() => {moneyImg = new Image(); moneyImg.src = 'money-bag.png'}, 600)
 setTimeout(() => {fistImg = new Image(); fistImg.src = 'fist.png'}, 700)
+setTimeout(() => {pathImg = new Image(); pathImg.src = 'path.png'}, 800)
 class CollisionBorder{
     constructor(x,y,width,height){
         this.x = x
@@ -84,56 +89,107 @@ class InteractBorder{
         }
     }
 }
-var collisionBorders = [new CollisionBorder(5,300,200,200)]
+var collisionBorders = [new CollisionBorder(5,300,200,200), new CollisionBorder(915,0,90,125)]
 var interactBorders = [new InteractBorder(5,300,200,200)]
 class Player{
     constructor(x, y){
         this.x = x
         this.y = y
+        this.time = 0
     }
 
     blit(){
-        if (up == true){this.y -= 10}
-        if (down == true){this.y += 10}
-        if (right == true){this.x += 10}
-        if (left == true){this.x -= 10}
-        var collision = collisionBorders.find((c) => c.collide())
-        if (collision != undefined){
-            player.x -= 10
-            collision = collisionBorders.find((c) => c.collide())
-            if (collision != undefined){
-                player.x+=20
-                collision = collisionBorders.find((c) => c.collide())
-                if(collision != undefined){
-                    player.x-=10
-                    player.y-=10
-                    collision = collisionBorders.find((c) => c.collide())
-                    if(collision!=undefined){
-                        player.y+=20
-                    }
-                }
-            }
-        }
-        if (this.x<0){
-            this.x += 10
-        }
-        if (this.x>1820){
-            this.x -= 10
-        }
-        if (this.y<0){
-            this.y += 10
-        }
-        if (this.y>980){
-            this.y -= 10
-        }
         ctx.drawImage(playerImg, this.x, this.y)
         ctx.fillStyle = '#ffffff'
         ctx.fillRect(5,5,200,25)
         ctx.fillStyle = '#ff0000'
         ctx.fillRect(5,5,(hp/max_hp)*200,25)
-        ctx.fillStyle = '#000000'
+        ctx.fillStyle = '#ffffff'
         ctx.font = '17px Arial'
         ctx.fillText(Math.ceil(hp)+"/"+max_hp, 215, 25)
+        if (enteringDungeon==false){
+            if (up == true){this.y -= 10}
+            if (down == true){this.y += 10}
+            if (right == true){this.x += 10}
+            if (left == true){this.x -= 10}
+        }
+        else{
+            var dist_x = 915-this.x
+            var sum = Math.pow(dist_x, 2)+Math.pow(this.y,2)
+            var dist = Math.sqrt(sum)
+            var x_move = (dist_x/dist)
+            var y_move = (this.y/dist)
+            this.x += x_move
+            this.y -= y_move
+            if (dist<=1){
+                this.time += 0.5
+                if(this.time>40){
+                    page = 'dungeon'
+                    room = 1
+                    enteringDungeon = false
+                    this.x = 915
+                    this.y = 620
+                }
+            }
+        }
+        var collision = collisionBorders.find((c) => c.collide())
+        if (collision != undefined){
+            if (collision.height == 125){
+                if (page == 'main'){enteringDungeon = true}
+            }
+            else{
+                player.x -= 10
+                collision = collisionBorders.find((c) => c.collide())
+                if (collision != undefined){
+                    player.x+=20
+                    collision = collisionBorders.find((c) => c.collide())
+                    if(collision != undefined){
+                        player.x-=10
+                        player.y-=10
+                        collision = collisionBorders.find((c) => c.collide())
+                        if(collision!=undefined){
+                            player.y+=20
+                        }
+                    }
+                }
+            }
+        }
+        var x = 0
+        var y1 = 0
+        var y2 = 0
+        if(page == 'dungeon'){
+            x = 650
+            y1 = 150
+            y2 = 340
+            if(this.y>=640 && room == 1){
+                page = 'main'
+                this.x = 915
+                this.y = 150
+                x=0
+                y1=0
+                y2=0
+            }
+        }
+        if (this.x<0+x){
+            this.x += 10
+        }
+        if (this.x>1820-x){
+            this.x -= 10
+        }
+        if (this.y<-10+y1){
+            this.y += 10
+        }
+        if (this.y>980-y2){
+            this.y -= 10
+        }
+        ctx.fillStyle = '#000000'
+        ctx.fillRect(0,0,1920,this.time*20)
+        ctx.fillRect(0,1080-this.time*20,1920,1080)
+        ctx.fillRect(0,0,this.time*20*1.777,1080)
+        ctx.fillRect(1920-this.time*20*1.777,0,1920,1080)
+        if(this.time>0 && enteringDungeon == false){
+            this.time-=0.5
+        }
     }
 }
 class Button{
@@ -331,7 +387,11 @@ function Slots(e){
     return false
 }
 var shopItems = []
+class Room{
+    constructor(){}
+}
 setTimeout(() => {shopItems = [new ShopItem(daggerImg,100,100,"1-6",5,"Dagger"), new ShopItem(sharpswordImg, 300, 100, "1-10", 10, "Sharp Sword")]}, 1500)
+var rooms = [undefined,new Room()]
 var statText = undefined
 function update(){
     ctx.fillStyle = '#007d00'
@@ -434,7 +494,13 @@ function update(){
         ctx.font = '24px Arial'
         ctx.fillText("Gold -- "+gold,5,75)
         try{
-            player.blit()
+            ctx.drawImage(pathImg, 885, 0)
+            ctx.drawImage(pathImg, 885, 200)
+            ctx.fillStyle = '#000000'
+            ctx.beginPath()
+            ctx.arc(960,75,75,0,Math.PI*2,false)
+            ctx.fill()
+            ctx.stroke()
             ctx.drawImage(shopImg, 5, 300)
             ctx.drawImage(manImg, 80,440)
             ctx.drawImage(speechImg, 115, 400)
@@ -445,10 +511,10 @@ function update(){
         for (let i=0; i<mainButtons.length; i++){
             mainButtons[i].blit()
         }
-        for (let i=0; i<droppedItems.length; i++){
-            droppedItems[i].blit()
-            droppedItems[i].interact.collide()
+        try{
+            player.blit()
         }
+        catch{}
     }
     if (page == 'menu'){
         ctx.fillStyle = '#c9c9c9'
@@ -483,10 +549,29 @@ function update(){
             ctx.drawImage(movingItem.img, mousex-45, mousey-45)
         }
     }
+    if (page == 'dungeon'){
+        ctx.fillStyle = '#000000'
+        ctx.fillRect(0,0,1920,1080)
+        ctx.fillStyle = '#c9c9c9'
+        ctx.fillRect(660,140,600,600)
+        var interact = interactBorders.find((i) => i.collide())
+        for (let i=0; i<mainButtons.length; i++){
+            mainButtons[i].blit()
+        }
+        for (let i=0; i<droppedItems.length; i++){
+            droppedItems[i].blit()
+            droppedItems[i].interact.collide()
+        }
+        ctx.fillStyle = '#ffffff'
+        ctx.font = '24px Arial'
+        ctx.fillText("Gold -- "+gold,5,75)
+        player.blit()
+    }
     requestAnimationFrame(update)
 }
 update()
 window.addEventListener('keydown', function(e){
+    if(enteringDungeon==false){
         if (e.key == 'w'){up = true}
         if (e.key == 's'){down = true}
         if (e.key == 'd'){right = true}
@@ -510,6 +595,7 @@ window.addEventListener('keydown', function(e){
                 }
             }
         }
+    }
 })
 window.addEventListener('keyup', function(e){
     if (e.key == 'w'){up = false}
@@ -519,17 +605,21 @@ window.addEventListener('keyup', function(e){
 })
 function onClick(e){
     if (page == 'main'){
-        const clickedButton = mainButtons.find((b) => b.wasClicked(e))
-        if (clickedButton != undefined){
-            if (clickedButton.text == 'Menu'){setTimeout(() => {page = 'menu'}, 250)}
-            if (clickedButton.text == 'Backpack'){setTimeout(() => {page = 'inventory'}, 250)}
+        if(enteringDungeon==false){
+            const clickedButton = mainButtons.find((b) => b.wasClicked(e))
+            if (clickedButton != undefined){
+                if (clickedButton.text == 'Menu'){setTimeout(() => {page = 'menu'}, 250)}
+                if (clickedButton.text == 'Backpack'){setTimeout(() => {page = 'inventory'}, 250)}
+            }
         }
     }
     else if (page == 'menu'){
         const clickedButton = menuButtons.find((b) => b.wasClicked(e))
         if (clickedButton != undefined){
             if (clickedButton.text == 'Resume'){
-                setTimeout(() => {page = 'main'}, 250)
+                setTimeout(() => {
+                    if(room == 1){page = 'dungeon'}
+                    else{page = 'main'}}, 250)
             }
             if (clickedButton.text == 'Settings'){
                 setTimeout(() => {page = 'settings'}, 250)
@@ -686,7 +776,9 @@ function onClick(e){
     else if(page == 'inventory'){
         const clickedButton = backButton.wasClicked(e)
         if (clickedButton != undefined){
-            setTimeout(() => {page = 'main'}, 250)
+            setTimeout(() => {
+                if(room == 1){page = 'dungeon'}
+                else{page = 'main'}}, 250)
         }
         if (moveItem == false){
             const clickedItem = backpack.items.find((i) => i.wasClicked(e))
@@ -728,6 +820,13 @@ function onClick(e){
                     swap = false
                 }
             }
+        }
+    }
+    else if(page == 'dungeon'){
+        const clickedButton = mainButtons.find((b) => b.wasClicked(e))
+        if (clickedButton != undefined){
+            if (clickedButton.text == 'Menu'){setTimeout(() => {page = 'menu'}, 250)}
+            if (clickedButton.text == 'Backpack'){setTimeout(() => {page = 'inventory'}, 250)}
         }
     }
 }
