@@ -7,6 +7,11 @@ var left = false
 var page = 'start'
 var step = 1
 var roll = undefined
+var moveItem = false
+var movingItem = undefined
+var mousex = 0
+var mousey = 0
+var swap = false
 function Roll(dice, min=true){
     var a = 1
     var total = 0
@@ -32,9 +37,55 @@ var perception = 0
 var charisma = 0
 var hp = 0
 var max_hp = 1
-var gold = 0
-const image = new Image()
-image.src = "knight.png"
+var gold = 100
+var shopImg = undefined
+var daggerImg = undefined
+var sharpswordImg = undefined
+var manImg = undefined
+var speechImg = undefined
+var moneyImg = undefined
+var fistImg = undefined
+const playerImg = new Image()
+playerImg.src = 'hero.png'
+setTimeout(() => {shopImg = new Image(); shopImg.src = 'shop.png'},100)
+setTimeout(() => {daggerImg = new Image(); daggerImg.src = 'dagger.png'},200)
+setTimeout(() => {sharpswordImg = new Image(); sharpswordImg.src = 'sharpsword.png'},300)
+setTimeout(() => {manImg = new Image(); manImg.src = 'man.png'}, 400)
+setTimeout(() => {speechImg = new Image(); speechImg.src = 'chat.png'}, 500)
+setTimeout(() => {moneyImg = new Image(); moneyImg.src = 'money-bag.png'}, 600)
+setTimeout(() => {fistImg = new Image(); fistImg.src = 'fist.png'}, 700)
+class CollisionBorder{
+    constructor(x,y,width,height){
+        this.x = x
+        this.y = y
+        this.width = width
+        this.height = height
+    }
+
+    collide(){
+        if(player.x<=this.x+this.width && player.x+90>=this.x && player.y<=this.height+this.y && player.y+90>=this.y){
+            return true
+        }
+    }
+}
+class InteractBorder{
+    constructor(x,y,width,height){
+        this.x = x
+        this.y = y
+        this.width = width
+        this.height = height
+    }
+    collide(){
+        if(player.x-20<=this.x+this.width && player.x+110>=this.x && player.y-20<=this.height+this.y && player.y+110>=this.y){
+            ctx.fillStyle = '#000000'
+            ctx.font = "24px Arial"
+            ctx.fillText("e", player.x+40, player.y-20)
+            return true
+        }
+    }
+}
+var collisionBorders = [new CollisionBorder(5,300,200,200)]
+var interactBorders = [new InteractBorder(5,300,200,200)]
 class Player{
     constructor(x, y){
         this.x = x
@@ -46,7 +97,36 @@ class Player{
         if (down == true){this.y += 10}
         if (right == true){this.x += 10}
         if (left == true){this.x -= 10}
-        ctx.drawImage(image, this.x, this.y)
+        var collision = collisionBorders.find((c) => c.collide())
+        if (collision != undefined){
+            player.x -= 10
+            collision = collisionBorders.find((c) => c.collide())
+            if (collision != undefined){
+                player.x+=20
+                collision = collisionBorders.find((c) => c.collide())
+                if(collision != undefined){
+                    player.x-=10
+                    player.y-=10
+                    collision = collisionBorders.find((c) => c.collide())
+                    if(collision!=undefined){
+                        player.y+=20
+                    }
+                }
+            }
+        }
+        if (this.x<0){
+            this.x += 10
+        }
+        if (this.x>1820){
+            this.x -= 10
+        }
+        if (this.y<0){
+            this.y += 10
+        }
+        if (this.y>980){
+            this.y -= 10
+        }
+        ctx.drawImage(playerImg, this.x, this.y)
         ctx.fillStyle = '#ffffff'
         ctx.fillRect(5,5,200,25)
         ctx.fillStyle = '#ff0000'
@@ -100,14 +180,107 @@ class Button{
         }
     }
 }
+class DroppedItem{
+    constructor(x,y,item){
+        this.x = x
+        this.y = y
+        this.item = item
+        this.interact = new InteractBorder(x,y,30,30)
+    }
+
+    blit(){
+        ctx.drawImage(this.item, this.x, this.y, 30, 30)
+    }
+}
+const droppedItems = []
+class Item{
+    constructor(img, slot){
+        this.img = img
+        this.slotY = 0
+        if (slot != 'weapon slot'){
+            this.slotX = slot
+            this.slot = slot
+            while (this.slotX>5){
+                this.slotY += 1
+                this.slotX -= 6
+            }
+        }
+        else{
+            this.slot = 'weapon slot'
+        }
+    }
+
+    wasClicked(e){
+        const {pageX: x, pageY: y} = e
+        if (this.slot != 'weapon slot'){
+            if (x>=this.slotX*90+400 && x<=this.slotX*90+490 && y>=this.slotY*90+100 && y<=this.slotY*90+190){
+                return true
+            }
+        }
+        else{
+            if (x>=1390 && x<=1480 && y>=100 && y<=190){
+                return true
+            }
+        }
+    }
+}
+class Backpack{
+    constructor(){
+        this.items = []
+    }
+
+    blit(){
+        for (let i=0; i<7; i++){
+            ctx.fillSyle = '#000000'
+            ctx.beginPath()
+            ctx.moveTo(400+i*90,100)
+            ctx.lineTo(400+i*90, 640)
+            ctx.lineWidth = 2
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.moveTo(400,100+i*90)
+            ctx.lineTo(940,100+i*90)
+            ctx.stroke()
+        }
+        ctx.beginPath()
+        ctx.moveTo(940,100)
+        ctx.lineTo(1480,100)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(940,640)
+        ctx.lineTo(1480,640)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(1480,100)
+        ctx.lineTo(1480,640)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(1390,100)
+        ctx.lineTo(1390,190)
+        ctx.lineTo(1480,190)
+        ctx.stroke()
+        ctx.drawImage(fistImg, 1390, 100)
+        for (let i=0; i<this.items.length; i++){
+            if (this.items[i].slot != 'weapon slot'){ctx.drawImage(this.items[i].img, this.items[i].slotX*90+400, this.items[i].slotY*90+100)}
+            else{
+                ctx.fillStyle = '#007d00'
+                ctx.fillRect(1391,101,88,88)
+                ctx.drawImage(this.items[i].img, 1390, 100)
+            }
+        }
+    }
+}
+const backpack = new Backpack()
+const backButton = new Button(923,660,66,25, 'Back', 24)
+const shopButtons = [new Button(923,660,66,25, 'Back', 24)]
 const statButtons = [new Button(250,500,150,25,'Strength',24), new Button(450,500,150,25,'Intelligence',24), new Button(650,500,150,25,'Dexterity',24), new Button(850,500,150,25,'Constitution',24), new Button(1050,500,150,25,'Wisdom',24), new Button(1250,500,150,25,'Perception',24), new Button(1450,500,150,25,'Charisma',24)]
-const nextButton = new Button(923,660,66,25,'Next',24)
+const nextButton = new Button(923,460,66,25,'Next',24)
 const startButtons = [new Button(905, 440, 100, 25, 'Play', 24), new Button(905, 480, 150, 25, 'Instructions', 24)]
 const instructButton = new Button(923,660,66,25,'Back',24)
-const mainButton = new Button(300,5,66,25, 'Menu', 24)
+const mainButtons = [new Button(300,5,66,25, 'Menu', 24), new Button(400,5,110,25,"Backpack",24)]
 const menuButtons = [new Button(905,400,100,25, 'Resume', 24), new Button(905,435,100,25, 'Settings', 24)]
 const optionButtons = [new Button(923,660,66,25, 'Back', 24)]
-var player = new Player(935,515)
+var player = new Player(910,490)
 class Text{
     constructor(x,y,text){
         this.x = x
@@ -122,6 +295,43 @@ class Text{
         ctx.fillText(this.text, this.x-this.width/2, this.y)
     }
 }
+class ShopItem{
+    constructor(item,x,y,dmg,cost,name){
+        this.item = item
+        this.x = x
+        this.y = y
+        this.cost = cost
+        this.text1 = new Text(x+67.5,y+105,"Damage -- "+dmg)
+        this.text2 = new Text(x+67.5, y+130,"Cost -- "+cost)
+        this.button = new Button(x,y+150,90,25,"Buy", 24)
+        this.text3 = new Text(x+67.5, y-20, name)
+    }
+
+    blit(){
+        ctx.drawImage(this.item,this.x,this.y)
+        this.text1.blit()
+        this.text2.blit()
+        this.text3.blit()
+        this.button.blit()
+
+    }
+}
+function Slots(e){
+    if (e.pageX>=1390 && e.pageX<=1480 && e.pageY<=190 && e.pageY>=100){
+        return 'equip'
+    }
+    for (let i=0; i<6; i++){
+        for (let k=0; k<6; k++){
+            if (e.pageX>=k*90+400 && e.pageX<=k*90+490 && e.pageY>=i*90+100 && e.pageY<=i*90+190){
+                sum = k+i*6
+                return sum
+            }
+        }
+    }
+    return false
+}
+var shopItems = []
+setTimeout(() => {shopItems = [new ShopItem(daggerImg,100,100,"1-6",5,"Dagger"), new ShopItem(sharpswordImg, 300, 100, "1-10", 10, "Sharp Sword")]}, 1500)
 var statText = undefined
 function update(){
     ctx.fillStyle = '#007d00'
@@ -220,8 +430,25 @@ function update(){
         }
     }
     if (page == 'main'){
-        player.blit()
-        mainButton.blit()
+        ctx.fillStyle = '#000000'
+        ctx.font = '24px Arial'
+        ctx.fillText("Gold -- "+gold,5,75)
+        try{
+            player.blit()
+            ctx.drawImage(shopImg, 5, 300)
+            ctx.drawImage(manImg, 80,440)
+            ctx.drawImage(speechImg, 115, 400)
+            ctx.drawImage(moneyImg, 118, 403)
+        }
+        catch{}
+        var interact = interactBorders.find((i) => i.collide())
+        for (let i=0; i<mainButtons.length; i++){
+            mainButtons[i].blit()
+        }
+        for (let i=0; i<droppedItems.length; i++){
+            droppedItems[i].blit()
+            droppedItems[i].interact.collide()
+        }
     }
     if (page == 'menu'){
         ctx.fillStyle = '#c9c9c9'
@@ -237,14 +464,52 @@ function update(){
             optionButtons[i].blit()
         }
     }
+    if (page == 'shop'){
+        for (let i=0; i<shopButtons.length; i++){
+            shopButtons[i].blit()
+        }
+        for (let i=0; i<shopItems.length; i++){
+            shopItems[i].blit()
+        }
+    }
+    if (page == 'inventory'){
+        backButton.blit()
+        backpack.blit()
+        if (moveItem == true){
+            window.addEventListener('mousemove', function(e){
+                mousex = e.pageX
+                mousey = e.pageY
+            })
+            ctx.drawImage(movingItem.img, mousex-45, mousey-45)
+        }
+    }
     requestAnimationFrame(update)
 }
 update()
 window.addEventListener('keydown', function(e){
-    if (e.key == 'w'){up = true}
-    if (e.key == 's'){down = true}
-    if (e.key == 'd'){right = true}
-    if (e.key == 'a'){left = true}
+        if (e.key == 'w'){up = true}
+        if (e.key == 's'){down = true}
+        if (e.key == 'd'){right = true}
+        if (e.key == 'a'){left = true}
+        if (e.key == 'e'){
+            var interact = interactBorders.find((i) => i.collide())
+            if (interact != undefined){
+                if(interact.x == 5 && interact.y == 300){
+                    page = 'shop'
+                }
+            }
+            const pickedUp = droppedItems.find((e) => e.interact.collide())
+            if (pickedUp != undefined){
+                if (pickedUp.item == daggerImg){
+                    backpack.items.push(new Item(daggerImg, backpack.items.length))
+                    droppedItems.splice(droppedItems.indexOf(pickedUp), 1)
+                }
+                if (pickedUp.item == sharpswordImg){
+                    backpack.items.push(new Item(sharpswordImg, backpack.items.length))
+                    droppedItems.splice(droppedItems.indexOf(pickedUp), 1)
+                }
+            }
+        }
 })
 window.addEventListener('keyup', function(e){
     if (e.key == 'w'){up = false}
@@ -254,9 +519,10 @@ window.addEventListener('keyup', function(e){
 })
 function onClick(e){
     if (page == 'main'){
-        const clickedButton = mainButton.wasClicked(e)
+        const clickedButton = mainButtons.find((b) => b.wasClicked(e))
         if (clickedButton != undefined){
-            setTimeout(() => {page = 'menu'}, 250)
+            if (clickedButton.text == 'Menu'){setTimeout(() => {page = 'menu'}, 250)}
+            if (clickedButton.text == 'Backpack'){setTimeout(() => {page = 'inventory'}, 250)}
         }
     }
     else if (page == 'menu'){
@@ -382,7 +648,7 @@ function onClick(e){
             const clickedButton = nextButton.wasClicked(e)
             if (clickedButton == true){
                 setTimeout(() => {step = 8}, 250)
-                setTimeout(() => {nextButton.text = 'Begin'}, 250)
+                setTimeout(() => {nextButton.text = 'Begin'; nextButton.y = 625}, 250)
                 setTimeout(() => {statText = [new Text(960,200,"Strength -- "+strength), new Text(960,250,"Intelligence -- "+intelligence),
             new Text(960,300,"Dexterity -- "+dexterity), new Text(960,350,"Constitution -- "+constitution), new Text(960, 400, "Wisdom -- "+wisdom), new Text(960,450,"Perception -- "+perception),
         new Text(960,500,"Charisma -- "+charisma), new Text(960,550,"Gold -- "+gold), new Text(960,600,"hit-points -- "+hp+"/"+max_hp)]}, 250)
@@ -395,6 +661,74 @@ function onClick(e){
             }
         }
 
+    }
+    else if(page == 'shop'){
+        const clickedButton = shopButtons.find((b) => b.wasClicked(e))
+        if (clickedButton != undefined){
+            setTimeout(() => {page = 'main'}, 250)
+        }
+        const clickedBuy = shopItems.find((b) => b.button.wasClicked(e))
+        if (clickedBuy != undefined){
+            if (clickedBuy.item == daggerImg){
+                if (gold>=5){
+                    backpack.items.push(new Item(daggerImg, backpack.items.length))
+                    gold -= 5
+                }
+            }
+            if (clickedBuy.item == sharpswordImg){
+                if (gold>=10){
+                    backpack.items.push(new Item(sharpswordImg, backpack.items.length))
+                    gold -= 10
+                }
+            }
+        }
+    }
+    else if(page == 'inventory'){
+        const clickedButton = backButton.wasClicked(e)
+        if (clickedButton != undefined){
+            setTimeout(() => {page = 'main'}, 250)
+        }
+        if (moveItem == false){
+            const clickedItem = backpack.items.find((i) => i.wasClicked(e))
+            if (clickedItem != undefined){
+                moveItem = true
+                movingItem = clickedItem
+                mousex = e.pageX
+                mousey = e.pageY
+                backpack.items.splice(backpack.items.indexOf(clickedItem), 1)
+            }
+        }
+        else{
+            const clickedSlot = Slots(e)
+            if (clickedSlot == 'equip'){
+                for (let i=0; i<backpack.items.length; i++){
+                    if(backpack.items[i].slot == 'weapon slot'){
+                        swap = true
+                    }
+                }
+                if (swap == false){
+                    backpack.items.push(new Item(movingItem.img, 'weapon slot'))
+                    moveItem = false
+                }
+                else{
+                    swap = false
+                }
+            }
+            else if (clickedSlot != false || clickedSlot == 0){
+                for (let i=0; i<backpack.items.length; i++){
+                    if (backpack.items[i].slotX+backpack.items[i].slotY*6 == clickedSlot){
+                        swap = true
+                    }
+                }
+                if (swap == false){
+                    backpack.items.push(new Item(movingItem.img, clickedSlot))
+                    moveItem = false
+                }
+                else{
+                    swap = false
+                }
+            }
+        }
     }
 }
 window.addEventListener('click', onClick)
