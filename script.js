@@ -162,6 +162,13 @@ class Player{
             y1 = 150
             y2 = 340
             if(this.y>=640 && room == 1){
+                leavingDungeon = true
+            }
+        }
+        if(leavingDungeon == true){
+            this.time += 0.5
+            if(this.time>40){
+                leavingDungeon=false
                 page = 'main'
                 this.x = 915
                 this.y = 150
