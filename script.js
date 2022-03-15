@@ -831,3 +831,4 @@ function onClick(e){
     }
 }
 window.addEventListener('click', onClick)
+page = 'start'
