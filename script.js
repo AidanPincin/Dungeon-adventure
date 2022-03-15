@@ -4,7 +4,7 @@ var up = false
 var down = false
 var right = false
 var left = false
-var page = 'start'
+var page = 'main'
 var step = 1
 var roll = undefined
 var moveItem = false
@@ -13,6 +13,7 @@ var mousex = 0
 var mousey = 0
 var swap = false
 var enteringDungeon = false
+var leavingDungeon = false
 var time = 0
 var room = 0
 function Roll(dice, min=true){
@@ -117,11 +118,11 @@ class Player{
             var dist_x = 915-this.x
             var sum = Math.pow(dist_x, 2)+Math.pow(this.y,2)
             var dist = Math.sqrt(sum)
-            var x_move = (dist_x/dist)
-            var y_move = (this.y/dist)
+            var x_move = (dist_x/dist)*2
+            var y_move = (this.y/dist)*2
             this.x += x_move
             this.y -= y_move
-            if (dist<=1){
+            if (dist<=20){
                 this.time += 0.5
                 if(this.time>40){
                     page = 'dungeon'
@@ -194,7 +195,7 @@ class Player{
         ctx.fillRect(0,1080-this.time*20,1920,1080)
         ctx.fillRect(0,0,this.time*20*1.777,1080)
         ctx.fillRect(1920-this.time*20*1.777,0,1920,1080)
-        if(this.time>0 && enteringDungeon == false){
+        if(this.time>0 && enteringDungeon == false && leavingDungeon==false){
             this.time-=0.5
         }
     }
@@ -497,6 +498,11 @@ function update(){
         }
     }
     if (page == 'main'){
+        if (isNaN(player.x) || isNaN(player.y)){
+            player.x = 915.5
+            player.y = 0.5
+            console.log('prevented bug')
+        }
         ctx.fillStyle = '#000000'
         ctx.font = '24px Arial'
         ctx.fillText("Gold -- "+gold,5,75)
@@ -838,4 +844,3 @@ function onClick(e){
     }
 }
 window.addEventListener('click', onClick)
-page = 'start'
