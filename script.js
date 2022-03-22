@@ -1,611 +1,738 @@
 const canvas = document.querySelector('canvas')
 const ctx = canvas.getContext('2d')
+var page = 'start'
+var instructionsPage = false
+var inInventory = false
+var inMenu = false
+var inSettings = false
+var step = 1
 var up = false
 var down = false
 var right = false
 var left = false
-var page = 'start'
-var step = 1
-var roll = undefined
-var moveItem = false
-var movingItem = undefined
-var mousex = 0
-var mousey = 0
-var swap = false
-var enteringDungeon = false
-var leavingDungeon = false
-var time = 0
+var moveX = 0
+var moveY = 0
+var l = 2500
+var r = 2500
 var room = 0
-function Roll(dice, min=true){
-    var a = 1
-    var total = 0
-    const rolls = []
-    while (a<=dice){
-        var die = Math.round(Math.random()*5)+1
-        rolls.push(die)
-        a+=1
-        total += die
-    }
-    if (min == true){
-        var min = Math.min(rolls[0],rolls[1],rolls[2],rolls[3])
-        total -= min
-    }
-    return {total, rolls}
+var time = 0
+function drawRect(color,x,y,width,height){
+    ctx.fillStyle = color
+    ctx.fillRect(x,y,width,height)
 }
-var strength = 0
-var intelligence = 0
-var dexterity = 0
-var constitution = 0
-var wisdom = 0
-var perception = 0
-var charisma = 0
-var hp = 0
-var max_hp = 1
-var gold = 100
-var shopImg = undefined
-var daggerImg = undefined
-var sharpswordImg = undefined
-var manImg = undefined
-var speechImg = undefined
-var moneyImg = undefined
-var fistImg = undefined
-var pathImg = undefined
-const playerImg = new Image()
-playerImg.src = 'hero.png'
-setTimeout(() => {shopImg = new Image(); shopImg.src = 'shop.png'},100)
-setTimeout(() => {daggerImg = new Image(); daggerImg.src = 'dagger.png'},200)
-setTimeout(() => {sharpswordImg = new Image(); sharpswordImg.src = 'sharpsword.png'},300)
-setTimeout(() => {manImg = new Image(); manImg.src = 'man.png'}, 400)
-setTimeout(() => {speechImg = new Image(); speechImg.src = 'chat.png'}, 500)
-setTimeout(() => {moneyImg = new Image(); moneyImg.src = 'money-bag.png'}, 600)
-setTimeout(() => {fistImg = new Image(); fistImg.src = 'fist.png'}, 700)
-setTimeout(() => {pathImg = new Image(); pathImg.src = 'path.png'}, 800)
-class CollisionBorder{
-    constructor(x,y,width,height){
-        this.x = x
-        this.y = y
-        this.width = width
-        this.height = height
+class Character{
+    constructor(){
+        this.x = 550
+        this.y = 350
+        this.player = new Image()
+        this.player.src = 'hero.png'
+        this.weapon = 'fists'
     }
-
-    collide(){
-        if(player.x<=this.x+this.width && player.x+90>=this.x && player.y<=this.height+this.y && player.y+90>=this.y){
-            return true
-        }
-    }
-}
-class InteractBorder{
-    constructor(x,y,width,height){
-        this.x = x
-        this.y = y
-        this.width = width
-        this.height = height
-    }
-    collide(){
-        if(player.x-20<=this.x+this.width && player.x+110>=this.x && player.y-20<=this.height+this.y && player.y+110>=this.y){
-            ctx.fillStyle = '#000000'
-            ctx.font = "24px Arial"
-            ctx.fillText("e", player.x+40, player.y-20)
-            return true
-        }
-    }
-}
-var collisionBorders = [new CollisionBorder(5,300,200,200), new CollisionBorder(915,0,90,125)]
-var interactBorders = [new InteractBorder(5,300,200,200)]
-class Player{
-    constructor(x, y){
-        this.x = x
-        this.y = y
-        this.time = 0
-    }
-
     blit(){
-        ctx.drawImage(playerImg, this.x, this.y)
-        ctx.fillStyle = '#ffffff'
-        ctx.fillRect(5,5,200,25)
-        ctx.fillStyle = '#ff0000'
-        ctx.fillRect(5,5,(hp/max_hp)*200,25)
-        ctx.fillStyle = '#ffffff'
-        ctx.font = '17px Arial'
-        ctx.fillText(Math.ceil(hp)+"/"+max_hp, 215, 25)
-        if (enteringDungeon==false){
-            if (up == true){this.y -= 10}
-            if (down == true){this.y += 10}
-            if (right == true){this.x += 10}
-            if (left == true){this.x -= 10}
+        try{
+            if (up==true && this.y>0){this.y-=10}
+            if (down==true && this.y<700){this.y+=10}
+            if (left==true && this.x>0){this.x-=10}
+            if (right==true && this.x<1100){this.x+=10}
+            ctx.drawImage(this.player, this.x, this.y)
+            drawRect('#ffffff',5,5,200,30)
+            drawRect('#ff0000',5,5,(this.hp/this.max_hp)*200,30)
+            ctx.fillStyle = '#ffffff'
+            ctx.font = '24px Arial'
+            ctx.fillText(this.hp+"/"+this.max_hp, 215, 29)
+            ctx.fillText("Gold -- "+this.gold,5,70)
         }
-        else{
-            var dist_x = 915-this.x
-            var sum = Math.pow(dist_x, 2)+Math.pow(this.y,2)
-            var dist = Math.sqrt(sum)
-            var x_move = (dist_x/dist)*2
-            var y_move = (this.y/dist)*2
-            this.x += x_move
-            this.y -= y_move
-            if (dist<=20){
-                this.time += 0.5
-                if(this.time>40){
-                    page = 'dungeon'
-                    room = 1
-                    enteringDungeon = false
-                    this.x = 915
-                    this.y = 620
+        catch{this.player.src = 'hero.png'}
+    }
+    assign(attr, value){
+        this[attr] = value
+    }
+}
+class object{
+    constructor(img,x,y,collide=false){
+        this.img = new Image()
+        this.img.src = img
+        this.src = img
+        this.x = x
+        this.y = y
+        this.collide = collide
+    }
+    draw(){
+        try{ctx.drawImage(this.img, this.x, this.y)}
+        catch{this.img.src = this.src}
+    }
+    interaction(){
+        const { naturalWidth: width, naturalHeight: height } = this.img
+        if (this.collide == true){
+            if (character.x<=this.x+width && character.x+100>=this.x && character.y<=this.y+height && character.y+100>=this.y){
+                const x_dif = character.x-this.x
+                const y_dif = character.y-this.y
+                if (x_dif<=-100){
+                    character.x-=10
+                }
+                if (x_dif>=width){
+                    character.x+=10
+                }
+                if (y_dif<=-100){
+                    character.y-=10
+                }
+                if (y_dif>=height){
+                    character.y+=10
                 }
             }
         }
-        var collision = collisionBorders.find((c) => c.collide())
-        if (collision != undefined){
-            if (collision.height == 125){
-                if (page == 'main'){enteringDungeon = true}
-            }
-            else{
-                player.x -= 10
-                collision = collisionBorders.find((c) => c.collide())
-                if (collision != undefined){
-                    player.x+=20
-                    collision = collisionBorders.find((c) => c.collide())
-                    if(collision != undefined){
-                        player.x-=10
-                        player.y-=10
-                        collision = collisionBorders.find((c) => c.collide())
-                        if(collision!=undefined){
-                            player.y+=20
-                        }
-                    }
-                }
-            }
-        }
-        var x = 0
-        var y1 = 0
-        var y2 = 0
-        if(page == 'dungeon'){
-            x = 650
-            y1 = 150
-            y2 = 340
-            if(this.y>=640 && room == 1){
-                leavingDungeon = true
-            }
-        }
-        if(leavingDungeon == true){
-            this.time += 0.5
-            if(this.time>40){
-                leavingDungeon=false
-                page = 'main'
-                this.x = 915
-                this.y = 150
-                x=0
-                y1=0
-                y2=0
-            }
-        }
-        if (this.x<0+x){
-            this.x += 10
-        }
-        if (this.x>1820-x){
-            this.x -= 10
-        }
-        if (this.y<-10+y1){
-            this.y += 10
-        }
-        if (this.y>980-y2){
-            this.y -= 10
-        }
-        ctx.fillStyle = '#000000'
-        ctx.fillRect(0,0,1920,this.time*20)
-        ctx.fillRect(0,1080-this.time*20,1920,1080)
-        ctx.fillRect(0,0,this.time*20*1.777,1080)
-        ctx.fillRect(1920-this.time*20*1.777,0,1920,1080)
-        if(this.time>0 && enteringDungeon == false && leavingDungeon==false){
-            this.time-=0.5
-        }
-    }
-}
-class Button{
-    constructor(x, y, width, height, text, fontsize){
-        this.x = x
-        this.y = y
-        this.width = width
-        this.height = height
-        this.color = '#0000ff'
-        this.color2 = '#000069'
-        this.time = 5
-        this.x2 = width/10
-        this.y2 = height/10
-        this.font = fontsize+"px Arial"
-        this.text = text
-    }
-
-    wasClicked(e){
-        const { pageX: x, pageY: y } = e
-        if ( (x >= this.x + 10 && x <= this.x + 10 + this.width) && (y >= this.y + 10 && y <= this.y + 10 + this.height) ){
-            this.time = 0
-            return true
-        }
-    }
-
-    blit(){
-        ctx.fillStyle = this.color2
-        ctx.fillRect(this.x, this.y, this.width*1.1, this.height*1.1)
-        ctx.font = this.font
-        const width = ctx.measureText(this.text).width
-        const height = parseInt(ctx.font.match(/\d+/), 10)
-        if (this.time<5){
-            this.time += 1
-            ctx.fillStyle = this.color
-            ctx.fillRect(this.x+this.x2, this.y+this.y2, this.width, this.height)
+        if (character.x<=this.x+width+20 && character.x+120>=this.x && character.y<=this.y+height+20 && character.y+120>=this.y){
             ctx.fillStyle = '#000000'
-            ctx.fillText(this.text, this.x + this.width/2 - width/2 + this.x2, this.y + this.height/2 + height/4 + this.y2 + 2)
-        }
-        else{
-            ctx.fillStyle = this.color
-            ctx.fillRect(this.x, this.y, this.width, this.height)
-            ctx.fillStyle = '#000000'
-            ctx.fillText(this.text, this.x + this.width/2 - width/2, this.y + this.height/2 + height/4 + 2)
+            ctx.font = '24px Arial'
+            ctx.fillText('e',character.x+38,character.y-5)
         }
     }
-}
-class DroppedItem{
-    constructor(x,y,item){
-        this.x = x
-        this.y = y
-        this.item = item
-        this.interact = new InteractBorder(x,y,30,30)
-    }
-
-    blit(){
-        ctx.drawImage(this.item, this.x, this.y, 30, 30)
-    }
-}
-const droppedItems = []
-class Item{
-    constructor(img, slot){
-        this.img = img
-        this.slotY = 0
-        if (slot != 'weapon slot'){
-            this.slotX = slot
-            this.slot = slot
-            while (this.slotX>5){
-                this.slotY += 1
-                this.slotX -= 6
-            }
-        }
-        else{
-            this.slot = 'weapon slot'
-        }
-    }
-
-    wasClicked(e){
-        const {pageX: x, pageY: y} = e
-        if (this.slot != 'weapon slot'){
-            if (x>=this.slotX*90+400 && x<=this.slotX*90+490 && y>=this.slotY*90+100 && y<=this.slotY*90+190){
-                return true
-            }
-        }
-        else{
-            if (x>=1390 && x<=1480 && y>=100 && y<=190){
-                return true
-            }
-        }
+    wasNear(){
+        const { naturalWidth: width, naturalHeight: height } = this.img
+        if (character.x<=this.x+width+20 && character.x+120>=this.x && character.y<=this.y+height+20 && character.y+120>=this.y){return true}
     }
 }
 class Backpack{
     constructor(){
         this.items = []
+        this.fist = new Image()
+        this.fist.src = 'fist.png'
+        this.slotCount = 25
     }
-
     blit(){
-        for (let i=0; i<7; i++){
-            ctx.fillSyle = '#000000'
-            ctx.beginPath()
-            ctx.moveTo(400+i*90,100)
-            ctx.lineTo(400+i*90, 640)
-            ctx.lineWidth = 2
-            ctx.stroke()
-            ctx.beginPath()
-            ctx.moveTo(400,100+i*90)
-            ctx.lineTo(940,100+i*90)
-            ctx.stroke()
+        drawRect('#000000',625,50,400,1)
+        drawRect('#000000',625,500,400,1)
+        drawRect('#000000',1025,50,1,450)
+        drawRect('#000000',935,50,1,90)
+        drawRect('#000000',935,140,90,1)
+        try{if (character.weapon == 'fists'){ctx.drawImage(this.fist,935,50)}}
+        catch{this.fist.src = 'fist.png'}
+        for (let i=0; i<6; i++){
+            drawRect('#000000',175,50+i*90,450,1)
+            drawRect('#000000',175+i*90,50,1,450)
         }
-        ctx.beginPath()
-        ctx.moveTo(940,100)
-        ctx.lineTo(1480,100)
-        ctx.stroke()
-        ctx.beginPath()
-        ctx.moveTo(940,640)
-        ctx.lineTo(1480,640)
-        ctx.stroke()
-        ctx.beginPath()
-        ctx.moveTo(1480,100)
-        ctx.lineTo(1480,640)
-        ctx.stroke()
-        ctx.beginPath()
-        ctx.moveTo(1390,100)
-        ctx.lineTo(1390,190)
-        ctx.lineTo(1480,190)
-        ctx.stroke()
-        ctx.drawImage(fistImg, 1390, 100)
         for (let i=0; i<this.items.length; i++){
-            if (this.items[i].slot != 'weapon slot'){ctx.drawImage(this.items[i].img, this.items[i].slotX*90+400, this.items[i].slotY*90+100)}
+            this.items[i].draw()
+        }
+    }
+    addItem(img, slot){
+        if (typeof slot != 'number') {
+            const possibleSlots = [...Array(this.slotCount).keys()].filter(i => this.items.every(item => item.slot !== i))
+            slot = Math.min(...possibleSlots)
+            console.log(possibleSlots, slot)
+        }
+        this.items.push(new Item(img,slot))
+    }
+}
+function getSlot(e){
+    const { pageX: x, pageY: y } = e
+    for (let i=0; i<5; i++){
+        for (let g=0; g<5; g++){
+            if (x>=185+i*90 && x<=275+i*90 && y>=60+g*90 && y<=150+g*90){
+                return {'slotX':i, 'slotY':g}
+            }
+        }
+    }
+    if (x>=935 && x<=1025 && y>= 50 && y<=140){
+        return {'slotX':'weapon slot', 'slotY':'weapon slot'}
+    }
+}
+class Item{
+    constructor(img,slot){
+        this.img = new Image()
+        this.img.src = img
+        this.src = img
+        this.slot = slot
+        this.slotX = slot
+        this.slotY = 0
+        this.move = false
+        this.time = 250
+        while (this.slotX>4){
+            this.slotX -= 5
+            this.slotY += 1
+        }
+    }
+    draw(){
+        if (this.move == false){
+            try{
+                if (this.slotX == 'weapon slot'){ctx.drawImage(this.img,935,50)}
+                else{ctx.drawImage(this.img,175+this.slotX*90,50+this.slotY*90)}
+            }
+            catch{this.img.src = this.src}
+        }
+        else{
+            try{ctx.drawImage(this.img,moveX-45,moveY-45)}
+            catch{this.img.src = this.src}
+        }
+    }
+    wasClicked(e){
+        const { pageX: x, pageY: y } = e
+        if (this.move == true){
+            const slot = getSlot(e)
+            if (slot != undefined){
+                this.slotX = slot.slotX
+                this.slotY = slot.slotY
+                if (slot.slotX == 'weapon slot'){
+                    setTimeout(() => {character.weapon = this.src}, 0)
+                }
+                this.move = false
+            }
+        }
+        else{
+            if (this.slotX == 'weapon slot'){
+                if (x>=935 && x<=1025 && y>=50 && y<=140){
+                    this.move = true
+                    character.weapon = 'fists'
+                }
+            }
             else{
-                ctx.fillStyle = '#007d00'
-                ctx.fillRect(1391,101,88,88)
-                ctx.drawImage(this.items[i].img, 1390, 100)
+                if (x>=this.slotX*90+185 && x<=this.slotX*90+275 && y>=this.slotY*90+60 && y<=this.slotY*90+150){
+                    this.move = true
+                }
             }
         }
     }
 }
+const droppedItems = []
 const backpack = new Backpack()
-const backButton = new Button(923,660,66,25, 'Back', 24)
-const shopButtons = [new Button(923,660,66,25, 'Back', 24)]
-const statButtons = [new Button(250,500,150,25,'Strength',24), new Button(450,500,150,25,'Intelligence',24), new Button(650,500,150,25,'Dexterity',24), new Button(850,500,150,25,'Constitution',24), new Button(1050,500,150,25,'Wisdom',24), new Button(1250,500,150,25,'Perception',24), new Button(1450,500,150,25,'Charisma',24)]
-const nextButton = new Button(923,460,66,25,'Next',24)
-const startButtons = [new Button(905, 440, 100, 25, 'Play', 24), new Button(905, 480, 150, 25, 'Instructions', 24)]
-const instructButton = new Button(923,660,66,25,'Back',24)
-const mainButtons = [new Button(300,5,66,25, 'Menu', 24), new Button(400,5,110,25,"Backpack",24)]
-const menuButtons = [new Button(905,400,100,25, 'Resume', 24), new Button(905,435,100,25, 'Settings', 24)]
-const optionButtons = [new Button(923,660,66,25, 'Back', 24)]
-var player = new Player(910,490)
-class Text{
-    constructor(x,y,text){
+const shop = new object('shop.png',120,250,true)
+const man = new object('man.png',195,390)
+const speech_bubble = new object('chat.png',225,350)
+const money_bag = new object('money-bag.png',230,350)
+const character = new Character()
+const path = new Image()
+path.src = 'path.png'
+function Roll(dice, min=true){
+    const rolls = []
+    var total = 0
+    for (let i=0; i<dice; i++){
+        const die = Math.round(Math.random()*5+1)
+        total += die
+        rolls.push(die)
+    }
+    if (min==true){
+        const min = Math.min(rolls[0],rolls[1],rolls[2],rolls[3])
+        total -= min
+    }
+    return {'rolls':rolls, 'total':total}
+}
+class Button{
+    constructor(x,y,width,height,text,size){
         this.x = x
         this.y = y
         this.text = text
-        ctx.fillStyle = '#000000'
-        ctx.font = '30px Arial'
-        this.width = ctx.measureText(text).width
+        this.width = width
+        this.height = height
+        this.size = size
+        this.font = size+"px Arial"
     }
-
     blit(){
-        ctx.fillText(this.text, this.x-this.width/2, this.y)
+        ctx.fillStyle = '#0000ff'
+        ctx.fillRect(this.x, this.y, this.width, this.height)
+        ctx.fillStyle = '#000000'
+        ctx.font = this.font
+        let width = ctx.measureText(this.text).width
+        let height = this.size/3
+        ctx.fillText(this.text, this.x+this.width/2-width/2, this.y+this.height/2+height)
+    }
+    wasClicked(e){
+        const { pageX: x, pageY: y } = e
+        if (x>=this.x+10 && x<=this.x+this.width+10 && y>=this.y+10 && y<=this.y+this.height+10){
+            return true
+        }
+    }
+}
+class Txt{
+    constructor(x,y,text,size){
+        this.x = x
+        this.y = y
+        this.text = text
+        this.height = size
+        this.font = size+"px Arial"
+    }
+    blit(){
+        ctx.fillStyle = '#000000'
+        ctx.font = this.font
+        let width = ctx.measureText(this.text).width
+        ctx.fillText(this.text, this.x-width/2, this.y+this.height)
     }
 }
 class ShopItem{
-    constructor(item,x,y,dmg,cost,name){
-        this.item = item
+    constructor(img,x,y,dmg,name,cost){
+        this.img = new Image()
+        this.src = img
+        this.img.src = img
         this.x = x
-        this.y = y
         this.cost = cost
-        this.text1 = new Text(x+67.5,y+105,"Damage -- "+dmg)
-        this.text2 = new Text(x+67.5, y+130,"Cost -- "+cost)
-        this.button = new Button(x,y+150,90,25,"Buy", 24)
-        this.text3 = new Text(x+67.5, y-20, name)
+        this.y = y
+        this.button = new Button(x,y+175,90,30,"Buy",24)
+        this.dmgTxt = new Txt(x+45,y+100,"Damage -- "+dmg,24)
+        this.nameTxt = new Txt(x+45,y-35,name,30)
+        this.costTxt = new Txt(x+45,y+130,"Cost -- "+cost+" gold",24)
     }
-
-    blit(){
-        ctx.drawImage(this.item,this.x,this.y)
-        this.text1.blit()
-        this.text2.blit()
-        this.text3.blit()
+    draw(){
+        try{ctx.drawImage(this.img,this.x,this.y)}
+        catch{this.img.src = this.src}
+        this.dmgTxt.blit()
+        this.nameTxt.blit()
         this.button.blit()
-
+        this.costTxt.blit()
     }
-}
-function Slots(e){
-    if (e.pageX>=1390 && e.pageX<=1480 && e.pageY<=190 && e.pageY>=100){
-        return 'equip'
-    }
-    for (let i=0; i<6; i++){
-        for (let k=0; k<6; k++){
-            if (e.pageX>=k*90+400 && e.pageX<=k*90+490 && e.pageY>=i*90+100 && e.pageY<=i*90+190){
-                sum = k+i*6
-                return sum
+    wasClick(e){
+        const clicked = this.button.wasClicked(e)
+        if (clicked == true){
+            if (character.gold>=this.cost && backpack.items.length<25){
+                backpack.addItem(this.src)
+                character.gold -= this.cost
             }
         }
     }
-    return false
 }
-var shopItems = []
 class Room{
-    constructor(){}
-}
-setTimeout(() => {shopItems = [new ShopItem(daggerImg,100,100,"1-6",5,"Dagger"), new ShopItem(sharpswordImg, 300, 100, "1-10", 10, "Sharp Sword")]}, 1500)
-var rooms = [undefined,new Room()]
-var statText = undefined
-function update(){
-    ctx.fillStyle = '#007d00'
-    ctx.fillRect(0,0,1920,1080)
-    if (page == 'start'){
-        ctx.font = "48px Arial"
-        ctx.fillStyle = '#000000'
-        let width = ctx.measureText("WELCOME TO DUNGEON ADVENTURE!").width
-        ctx.fillText("WELCOME TO DUNGEON ADVENTURE!", 960-width/2, 100)
-        for (let i=0; i<startButtons.length; i++){
-            startButtons[i].blit()
-        }
+    constructor(north,south,west,east,northRoom=undefined,southRoom=undefined,westRoom=undefined,eastRoom=undefined){
+        this.north = north
+        this.west = west
+        this.south = south
+        this.east = east
+        this.northRoom = northRoom
+        this.southRoom = southRoom
+        this.eastRoom = eastRoom
+        this.westRoom = westRoom
     }
-    if (page == 'instructions'){
-        ctx.fillStyle = '#c9c9c9'
-        ctx.fillRect(660,390,600,300)
-        instructButton.blit()
-    }
-    if (page == 'character creation'){
-        if (step == 1){
-            ctx.fillStyle = '#000000'
-            ctx.font = '30px Arial'
-            let width = ctx.measureText("Before we begin let's create your character").width
-            ctx.fillText("Before we begin let's create your character", 960-width/2, 100)
-            nextButton.blit()
-        }
-        if (step == 2){
-            ctx.fillStyle = '#000000'
-            ctx.font = '30px Arial'
-            let width = ctx.measureText("First we will roll for your starting attributes").width
-            ctx.fillText("First we will roll for your starting attributes", 960-width/2, 100)
-            width = ctx.measureText("To do this we will roll 4 6-sided dice, then add the 3 highest values for each attribute").width
-            ctx.fillText("To do this we will roll 4 6-sided dice, then add the 3 highest values for each attribute", 960-width/2, 150)
-            nextButton.blit()
-        }
-        if (step == 3){
-            ctx.fillStyle = '#000000'
-            ctx.font = '30px Arial'
-            let width = ctx.measureText("You roll "+roll.rolls).width
-            ctx.fillText("You rolled a "+roll.rolls, 960-width/2, 100)
-            width = ctx.measureText("So the 3 highest values added together is "+roll.total).width
-            ctx.fillText("So the 3 highest values added together is "+roll.total, 960-width/2, 150)
-            width = ctx.measureText("Where would you like to assign your value of "+roll.total).width
-            ctx.fillText("Where would you like to assign your value of "+roll.total+"?", 960-width/2, 200)
-            for (let i=0; i<statButtons.length; i++){
-                statButtons[i].blit()
+    draw(){
+        drawRect('#7d7d7d',300,150,600,500)
+        if (this.south == true){
+            drawRect('#7d7d7d',550,650,100,150)
+            if (character.y>=550 && (character.x<=520 || character.x>=600)){
+                character.y-=10
+            }
+            if (character.y>=550 && character.x>=510 && character.x<=610){
+                character.x = 550
+            }
+            if (character.y>=690){
+                if (this.southRoom != 'town'){
+                    room = this.southRoom
+                    character.y = 150
+                }
+                else{
+                    l -= 15
+                    character.y = 700
+                }
             }
         }
-        if (step == 4){
-            ctx.fillStyle = '#000000'
-            ctx.font = '30px Arial'
-            let width = ctx.measureText("Next we will determine for your starting hit-points").width
-            ctx.fillText("Next we will determine for your starting hit-points", 960-width/2, 100)
-            width = ctx.measureText("To do this we will take your constitution, multiply it by 2, then add the sum of 3 6-sided dice").width
-            ctx.fillText("To do this we will take your constitution, multiply it by 2, then add the sum of 3 6-sided dice", 960-width/2, 150)
-            nextButton.blit()
-        }
-        if (step == 5){
-            ctx.fillStyle = '#000000'
-            ctx.font = '30px Arial'
-            let width = ctx.measureText("Rolling the dice you get "+roll.rolls+" for a total of "+roll.total).width
-            ctx.fillText("Rolling the dice you get "+roll.rolls+" for a total of "+roll.total, 960-width/2, 100)
-            width = ctx.measureText("Your constitution("+constitution+")x2 adds to a total of "+constitution*2).width
-            ctx.fillText("Your constitution("+constitution+")x2 adds to a total of "+constitution*2, 960-width/2, 150)
-            width = ctx.measureText("So your starting hit-points are "+hp+"("+roll.total+"+"+constitution*2+")").width
-            ctx.fillText("So your starting hit-points are "+hp+"("+roll.total+"+"+constitution*2+")", 960-width/2, 200)
-            nextButton.blit()
-        }
-        if (step == 6){
-            ctx.fillStyle = '#000000'
-            ctx.font = '30px Arial'
-            let width = ctx.measureText("Next we will determine for your starting gold").width
-            ctx.fillText("Next we will determine for your starting gold", 960-width/2, 100)
-            width = ctx.measureText("To do this we will roll and add 20 6-sided dice").width
-            ctx.fillText("To do this we will roll and add 20 6-sided dice", 960-width/2, 150)
-            nextButton.blit()
-        }
-        if (step == 7){
-            ctx.fillStyle = '#000000'
-            ctx.font = '30px Arial'
-            let width = ctx.measureText("Rolling for your gold you got a starting amount of "+gold+" gold").width
-            ctx.fillText("Rolling for your gold you got a starting amount of "+gold+" gold", 960-width/2, 100)
-            nextButton.blit()
-        }
-        if (step == 8){
-            ctx.fillStyle = '#000000'
-            ctx.font = '30px Arial'
-            let width = ctx.measureText("Congratulations! You have finished creating your character!").width
-            ctx.fillText("Congratulations! You have finished creating your character!", 960-width/2, 100)
-            width = ctx.measureText("Your stats:").width
-            ctx.fillText("Your stats:", 960-width/2, 150)
-            for (let i=0; i<statText.length; i++){
-                statText[i].blit()
+        else{
+            if (character.y>=550){
+                character.y-=10
             }
-            nextButton.blit()
         }
-    }
-    if (page == 'main'){
-        if (isNaN(player.x) || isNaN(player.y)){
-            player.x = 915.5
-            player.y = 0.5
-            console.log('prevented bug')
+        if (this.north == true){
+            drawRect('#7d7d7d',550,0,100,150)
+            if (character.y<=150 && (character.x<=520 || character.x>=600)){
+                character.y+=10
+            }
+            if (character.y<=150 && character.x>=510 && character.x<=610){
+                character.x = 550
+            }
+            if (character.y<=10){
+                room = this.northRoom
+                character.y = 550
+            }
         }
-        ctx.fillStyle = '#000000'
-        ctx.font = '24px Arial'
-        ctx.fillText("Gold -- "+gold,5,75)
-        try{
-            ctx.drawImage(pathImg, 885, 0)
-            ctx.drawImage(pathImg, 885, 200)
-            ctx.fillStyle = '#000000'
+        else{
+            if (character.y<=150){
+                character.y+=10
+            }
+        }
+        if (this.west == true){
+            drawRect('#7d7d7d',150,325,150,100)
+            if (character.x<=300 && (character.y>=370 || character.y<=280)){
+                character.x+=10
+            }
+            if (character.x<=300 && character.y<=380 && character.y>=270){
+                character.y = 325
+            }
+            if (character.x<=160){
+                room = this.westRoom
+                character.x = 800
+            }
+        }
+        else{
+            if (character.x<=300){
+                character.x+=10
+            }
+        }
+        if (this.east == true){
+            drawRect('#7d7d7d',900,325,150,100)
+            if (character.x>=800 && (character.y>=370 || character.y<=280)){
+                character.x-=10
+            }
+            if (character.x>=800 && character.y<=380 && character.y>=270){
+                character.y = 325
+            }
+            if (character.x>=940){
+                room = this.eastRoom
+                character.x = 300
+            }
+        }
+        else{
+            if (character.x>=800){
+                character.x-=10
+            }
+        }
+        if (character.y>=690 && this.southRoom == 'town'){
             ctx.beginPath()
-            ctx.arc(960,75,75,0,Math.PI*2,false)
-            ctx.fill()
+            ctx.lineWidth = 1500
+            ctx.arc(600,750,l,0,Math.PI*2,false)
             ctx.stroke()
-            ctx.drawImage(shopImg, 5, 300)
-            ctx.drawImage(manImg, 80,440)
-            ctx.drawImage(speechImg, 115, 400)
-            ctx.drawImage(moneyImg, 118, 403)
+            if (l<750){
+                l=750
+                time += 1
+                if (time>60){
+                    setTimeout(() => {l=2500},0)
+                    character.x = 975
+                    character.y = 300
+                    page = 'town'
+                    time = 0
+                    setTimeout(() => {r=750},0)
+                }
+            }
         }
-        catch{}
-        var interact = interactBorders.find((i) => i.collide())
-        for (let i=0; i<mainButtons.length; i++){
-            mainButtons[i].blit()
-        }
-        try{
-            player.blit()
-        }
-        catch{}
     }
-    if (page == 'menu'){
-        ctx.fillStyle = '#c9c9c9'
-        ctx.fillRect(885,390,150,300)
+}
+const rooms = [new Room(true,true,false,false,1,'town'), new Room(true,true,true,false,2,0,3), new Room(true,true,true,true,12,1,7,8),
+new Room(false,false,true,true,undefined,undefined,4,1), new Room(true,false,true,true,6,undefined,5,3), 
+new Room(false,false,false,true,undefined,undefined,undefined,4), new Room(true,true,false,true,20,4,undefined,7),
+new Room(false,false,true,true,undefined,undefined,6,2), new Room(false,false,true,true,undefined,undefined,2,9),
+new Room(false,true,true,true,undefined,10,8,15), new Room(true,true,false,false,9,11), 
+new Room(true,false,false,false,10), new Room(true,true,false,true,37,2,undefined,13),
+new Room(false,false,true,true,undefined,undefined,12,14), new Room(true,true,true,true,44,15,13,19), 
+new Room(true,true,true,true,14,16,9,18), new Room(true,false,false,true,15,undefined,undefined,17),
+new Room(false,false,true,false,undefined,undefined,16), new Room(false,false,true,false,undefined,undefined,15),
+new Room(true,false,true,false,45,undefined,14), new Room(true,true,false,false,21,6), 
+new Room(true,true,true,false,23,20,22), new Room(false,false,false,true,undefined,undefined,undefined,21),
+new Room(true,true,false,false,24,21), new Room(true,true,false,true,25,23,undefined,35),
+new Room(true,true,false,false,26,24), new Room(false,true,false,true,undefined,25,undefined,27),
+new Room(false,false,true,true,undefined,undefined,26,28), new Room(false,true,true,false,undefined,29,27),
+new Room(true,true,true,true,28,34,32,30), new Room(false,false,true,true,undefined,undefined,29,31),
+new Room(false,false,true,false,undefined,undefined,30), new Room(false,false,true,true,undefined,undefined,33,29),
+new Room(false,false,false,true,undefined,undefined,undefined,32), new Room(true,true,true,true,29,37,35,38),
+new Room(false,true,true,true,undefined,36,24,34), new Room(true,false,false,false,35),
+new Room(true,true,false,false,34,12), new Room(false,true,true,true,undefined,39,34,41), 
+new Room(true,true,false,false,38,40), new Room(true,false,false,false,39),
+new Room(false,true,true,true,undefined,42,38,48), new Room(true,true,false,false,41,43),
+new Room(true,true,false,false,42,44), new Room(true,true,false,false,43,14),
+new Room(true,true,false,false,46,19), new Room(true,true,false,false,47,45),
+new Room(true,true,true,false,49,46,48), new Room(false,false,true,true,undefined,undefined,41,47),
+new Room(true,true,false,false,50,47), new Room(false,true,true,true,undefined,49,52,51),
+new Room(false,false,true,false,undefined,undefined,50), new Room(true,false,false,true,53,undefined,undefined,50),
+new Room(true,true,true,true,57,52,58,54), new Room(true,false,true,true,56,undefined,53,55), 
+new Room(false,false,true,false,undefined,undefined,54), new Room(false,true,false,false,undefined,54),
+new Room(false,true,false,false,undefined,53), new Room(true,false,true,true,59,undefined,60,53),
+new Room(false,true,false,false,undefined,58), new Room(true,false,false,true,61,undefined,undefined,58),
+new Room(false,true,false,false,undefined,60)]
+const shopItems = [new ShopItem('dagger.png',100,75,'1-6','Dagger',5), new ShopItem('sharpsword.png',300,75,'1-10','Sharp Sword',10),
+new ShopItem('morningstar.png',500,75,'2-12','Morningstar',20), new ShopItem('longsword.png',100,375,'3-18','Long Sword',50), 
+new ShopItem('battleaxe.png',300,375,'4-24','Battleaxe',100),new ShopItem('greatsword.png',500,375,'5-30','Great Sword',250)]
+const backButton = new Button(570,600,60,30,"Back",24)
+const nextButton = new Button(570,600,60,30,"Next",24)
+var roll = Roll(4)
+var rollText = [new Txt(600,100,"Rolling for you attributes you got "+roll.rolls,24),
+new Txt(600,130,"So the 3 highest values added together comes to "+roll.total,24),new Txt(600,160,"Where would you like to assign your value of "+roll.total+"?",24)]
+const setupTxt = [new Txt(600,100,"Before we begin let's create your character",24), new Txt(600,200,"To do this first we will assign your attribute values by rolling",24),
+new Txt(600,230,"4 6-sided dice and adding the 3 highest values together for each attribute",24),new Txt(600,260,"which will result in each attribute ranging from 3 to 18 (higher numbers better)",24),
+new Txt(600,360,"After that we will then determine your starting hitpoints by",24), new Txt(600,390,"multiplying your constitution by 2 and adding the values of 3 6-sided dice",24),
+new Txt(600,490,"Finally we will determine your starting gold by rolling 20 6-sided dice and adding them together",24)]
+const statButtons = [new Button(312.5,350,125,30,"Strength",24), new Button(462.5,350,125,30,"Intelligence",24), new Button(612.5,350,125,30,"Dexterity",24), 
+new Button(762.5,350,125,30,"Constitution",24), new Button(375,405,125,30,"Wisdom",24), new Button(525,405,125,30,"Perception",24), new Button(675,405,125,30,"Charisma",24)]
+instructions = [new Txt(600,100,"How To Play", 36), new Txt(600,100,"___________", 36), new Txt(600,200,"WASD keys to move", 24), 
+new Txt(600,230,"Press the 'e' key to interact when it shows above your player's head",24)]
+const startButtons = [new Button(562.5,350,75,30,"Play",24), new Button(562.5,390,135,30,"Instructions",24), new Button(562.5,430,100,30,"Settings",24)]
+const t1 = new Txt(600,0,"Welcome To Dungeon Adventure!", 48)
+const menuButtons = [new Button(550,300,100,30,"Resume",24), new Button(535,340,130,30,"Instructions",24), new Button(550,380,100,30,"Settings",24)]
+const mainButtons = [new Button(290,5,125,30,"Backpack",24), new Button(425,5,75,30,"Menu",24)]
+function update(){
+    drawRect('#007d00',0,0,1200,800)
+    if (instructionsPage == true){
+        backButton.blit()
+        for (let i=0; i<instructions.length; i++){
+            instructions[i].blit()
+        }
+    }
+    else if (inInventory==true){
+        backButton.blit()
+        backpack.blit()
+    }
+    else if (inSettings == true){
+        backButton.blit()
+    }
+    else if (inMenu==true){
+        drawRect('#7d7d7d',525,275,150,250)
         for (let i=0; i<menuButtons.length; i++){
             menuButtons[i].blit()
         }
     }
-    if (page == 'settings'){
-        ctx.fillStyle = '#c9c9c9'
-        ctx.fillRect(660,390,600,300)
-        for (let i=0; i<optionButtons.length; i++){
-            optionButtons[i].blit()
+    else if (page == 'start'){
+        t1.blit()
+        for (let i=0; i<startButtons.length; i++){
+            startButtons[i].blit()
         }
     }
-    if (page == 'shop'){
-        for (let i=0; i<shopButtons.length; i++){
-            shopButtons[i].blit()
+    else if (page == 'character setup'){
+        if (step == 1){
+            nextButton.blit()
+            for (let i=0; i<setupTxt.length; i++){
+                setupTxt[i].blit()
+            }
         }
-        for (let i=0; i<shopItems.length; i++){
-            shopItems[i].blit()
+        if (step == 2){
+            for (let i=0; i<statButtons.length; i++){
+                statButtons[i].blit()
+            }
+            for (let i=0; i<rollText.length; i++){
+                rollText[i].blit()
+            }
+        }
+        if (step == 3){
+            for (let i=0; i<rollText.length; i++){
+                rollText[i].blit()
+            }
+            nextButton.blit()
+        }
+        if (step == 4){
+            for (let i=0; i<rollText.length; i++){
+                rollText[i].blit()
+            }
+            nextButton.blit()
+        }
+        if (step == 5){
+            for (let i=0; i<rollText.length; i++){
+                rollText[i].blit()
+            }
+            nextButton.blit()
         }
     }
-    if (page == 'inventory'){
-        backButton.blit()
-        backpack.blit()
-        if (moveItem == true){
-            window.addEventListener('mousemove', function(e){
-                mousex = e.pageX
-                mousey = e.pageY
-            })
-            ctx.drawImage(movingItem.img, mousex-45, mousey-45)
-        }
-    }
-    if (page == 'dungeon'){
+    else if (page == 'town'){
+        try{ctx.drawImage(path,950,0); ctx.drawImage(path,950,200)}
+        catch{path.src='path.png'}
         ctx.fillStyle = '#000000'
-        ctx.fillRect(0,0,1920,1080)
-        ctx.fillStyle = '#c9c9c9'
-        ctx.fillRect(660,140,600,600)
-        var interact = interactBorders.find((i) => i.collide())
+        ctx.beginPath()
+        ctx.arc(1025,75,75,0,Math.PI*2,false)
+        ctx.fill()
+        character.blit()
+        shop.draw()
+        shop.interaction()
+        man.draw()
+        speech_bubble.draw()
+        money_bag.draw()
         for (let i=0; i<mainButtons.length; i++){
             mainButtons[i].blit()
         }
-        for (let i=0; i<droppedItems.length; i++){
-            droppedItems[i].blit()
-            droppedItems[i].interact.collide()
+        if (character.x>=875 && character.x<=1100 && character.y>=0 && character.y<=150){
+            character.x = 975
+            character.y = 25
+            l -= 15
+            if (l<750){
+                l=750
+                time += 1
+                if (time>60){
+                    page = 'dungeon'
+                    setTimeout(() => {l = 2500},0)
+                    r = 750
+                    character.x = 550
+                    character.y = 550
+                    time = 0
+                }
+            }
+            ctx.beginPath()
+            ctx.lineWidth = 1500
+            ctx.arc(1025,75,l,0,Math.PI*2,false)
+            ctx.stroke()
+        }
+        if (r<2500){
+            r += 15
+            ctx.beginPath()
+            ctx.lineWidth = 1500
+            ctx.arc(1050,300,r,0,Math.PI*2,false)
+            ctx.stroke()
+        }
+    }
+    else if (page == 'shop'){
+        backButton.blit()
+        for (let i=0; i<shopItems.length; i++){
+            shopItems[i].draw()
         }
         ctx.fillStyle = '#ffffff'
         ctx.font = '24px Arial'
-        ctx.fillText("Gold -- "+gold,5,75)
-        player.blit()
+        ctx.fillText("Gold -- "+character.gold,1000,25)
+    }
+    else if (page == 'dungeon'){
+        drawRect('#000000',0,0,1200,800)
+        rooms[room].draw()
+        character.blit()
+        if (r<2500){
+            r += 15
+            ctx.beginPath()
+            ctx.lineWidth = 1500
+            ctx.arc(600,600,r,0,Math.PI*2,false)
+            ctx.stroke()
+        }
+        for (let i=0; i<mainButtons.length; i++){
+            mainButtons[i].blit()
+        }
+        if (character.y>=690){
+            ctx.beginPath()
+            ctx.lineWidth = 1500
+            ctx.arc(600,750,l,0,Math.PI*2,false)
+            ctx.stroke()
+            if (l<765){
+                l=765
+                time += 1
+                if (time>60){
+                    setTimeout(() => {l=2500},0)
+                    character.x = 975
+                    character.y = 300
+                    page = 'town'
+                    time = 0
+                    setTimeout(() => {r=750},0)
+                }
+            }
+        }
     }
     requestAnimationFrame(update)
 }
 update()
-window.addEventListener('keydown', function(e){
-    if(enteringDungeon==false){
-        if (e.key == 'w'){up = true}
-        if (e.key == 's'){down = true}
-        if (e.key == 'd'){right = true}
-        if (e.key == 'a'){left = true}
-        if (e.key == 'e'){
-            var interact = interactBorders.find((i) => i.collide())
-            if (interact != undefined){
-                if(interact.x == 5 && interact.y == 300){
-                    page = 'shop'
+window.addEventListener('click', function(e){
+    if (instructionsPage == true){
+        const clicked = backButton.wasClicked(e)
+        if (clicked == true){
+            instructionsPage = false
+        }
+    }
+    else if(inInventory==true){
+        const clicked = backButton.wasClicked(e)
+        if(clicked==true){
+            inInventory=false
+        }
+        backpack.items.find((i) => i.wasClicked(e))
+    }
+    else if(inSettings==true){
+        const clicked = backButton.wasClicked(e)
+        if(clicked==true){
+            inSettings=false
+        }
+    }
+    else if(inMenu==true){
+        const clicked = menuButtons.find((b) => b.wasClicked(e))
+        if (clicked != undefined){
+            if (clicked.text == 'Settings'){
+                inSettings = true
+            }
+            if (clicked.text == 'Instructions'){
+                instructionsPage = true
+            }
+            if (clicked.text == 'Resume'){
+                inMenu = false
+            }
+        }
+    }
+    else if (page == 'start'){
+        const clicked = startButtons.find((b) => b.wasClicked(e))
+        if (clicked != undefined){
+            if (clicked.text == 'Play'){
+                page = 'character setup'
+            }
+            if (clicked.text == 'Instructions'){
+                instructionsPage = true
+            }
+            if (clicked.text == 'Settings'){
+                inSettings = true
+            }
+        }
+    }
+    else if (page == 'character setup'){
+        if (step != 2){
+            const clicked = nextButton.wasClicked(e)
+            if (clicked == true){
+                if (step == 3){
+                    roll = Roll(20,false)
+                    character.gold = roll.total
+                    rollText = [new Txt(600,100,"Rolling for your starting gold you got a total of "+character.gold,24), 
+                    new Txt(600,130,"So your starting amount of gold is "+character.gold,24)]
+                }
+                if (step == 4){
+                    nextButton.text = 'Begin'
+                    rollText = [new Txt(600,50,"Congratulations you have completed creating your character!",36), new Txt(600,160,"Your stats:",24), 
+                    new Txt(600,220,"Strength -- "+character.strength,24), new Txt(600,250,"Intelligence -- "+character.intelligence,24), 
+                    new Txt(600,280,"Dexterity -- "+character.dexterity,24), new Txt(600,310,"Constitution -- "+character.constitution,24), 
+                    new Txt(600,340,"Wisdom -- "+character.wisdom,24), new Txt(600,370,"Perception -- "+character.perception,24), 
+                    new Txt(600,400,"Charisma -- "+character.charisma,24), new Txt(600,430,"Hitpoints -- "+character.hp+"/"+character.max_hp,24), 
+                    new Txt(600,460,"Gold -- "+character.gold,24)]
+                }
+                if (step == 5){
+                    page = 'town'
+                }
+                step += 1
+            }
+        }
+        else {
+            const clicked = statButtons.find((b) => b.wasClicked(e))
+            if (clicked != undefined){
+                character.assign(clicked.text.toLowerCase(), roll.total)
+                roll = Roll(4)
+                statButtons.splice(statButtons.indexOf(clicked), 1)
+                rollText = [new Txt(600,100,"Rolling for you attributes you got "+roll.rolls,24),
+                new Txt(600,130,"So the 3 highest values added together comes to "+roll.total,24),
+                new Txt(600,160,"Where would you like to assign your value of "+roll.total+"?",24)]
+                if (statButtons.length == 0){
+                    step += 1
+                    roll = Roll(3,false)
+                    character.hp = character.constitution*2+roll.total
+                    character.max_hp = character.constitution*2+roll.total
+                    rollText = [new Txt(600,100,"Rolling for your constitution you got "+roll.rolls+" for a total of "+roll.total,24), 
+                    new Txt(600,130,"plus your constitution of "+character.constitution+" times 2 gets you an overall value of "+character.hp,24),
+                    new Txt(600,160,"So your starting hitpoints is "+character.hp,24)]
                 }
             }
-            const pickedUp = droppedItems.find((e) => e.interact.collide())
-            if (pickedUp != undefined){
-                if (pickedUp.item == daggerImg){
-                    backpack.items.push(new Item(daggerImg, backpack.items.length))
-                    droppedItems.splice(droppedItems.indexOf(pickedUp), 1)
-                }
-                if (pickedUp.item == sharpswordImg){
-                    backpack.items.push(new Item(sharpswordImg, backpack.items.length))
-                    droppedItems.splice(droppedItems.indexOf(pickedUp), 1)
-                }
+        }
+    }
+    else if (page == 'town'){
+        const clicked = mainButtons.find((b) => b.wasClicked(e))
+        if (clicked != undefined){
+            if (clicked.text == 'Backpack'){
+                inInventory = true
+            }
+            if (clicked.text == 'Menu'){
+                inMenu = true
+            }
+        }
+    }
+    else if (page == 'shop'){
+        const clicked = backButton.wasClicked(e)
+        if (clicked == true){page = 'town'}
+        shopItems.find((b) => b.wasClick(e))
+    }
+    else if (page == 'dungeon'){
+        const clicked = mainButtons.find((b) => b.wasClicked(e))
+        if (clicked != undefined){
+            if (clicked.text == 'Backpack'){
+                inInventory = true
+            }
+            if (clicked.text == 'Menu'){
+                inMenu = true
+            }
+        }
+    }
+})
+window.addEventListener('keydown', function(e){
+    if (e.key == 'w'){up = true}
+    if (e.key == 's'){down = true}
+    if (e.key == 'a'){left = true}
+    if (e.key == 'd'){right = true}
+    if (e.key == 'e'){
+        if (page == 'town'){
+            const near = shop.wasNear()
+            if (near == true){
+                page = 'shop'
             }
         }
     }
@@ -613,234 +740,10 @@ window.addEventListener('keydown', function(e){
 window.addEventListener('keyup', function(e){
     if (e.key == 'w'){up = false}
     if (e.key == 's'){down = false}
-    if (e.key == 'd'){right = false}
     if (e.key == 'a'){left = false}
+    if (e.key == 'd'){right = false}
 })
-function onClick(e){
-    if (page == 'main'){
-        if(enteringDungeon==false){
-            const clickedButton = mainButtons.find((b) => b.wasClicked(e))
-            if (clickedButton != undefined){
-                if (clickedButton.text == 'Menu'){setTimeout(() => {page = 'menu'}, 250)}
-                if (clickedButton.text == 'Backpack'){setTimeout(() => {page = 'inventory'}, 250)}
-            }
-        }
-    }
-    else if (page == 'menu'){
-        const clickedButton = menuButtons.find((b) => b.wasClicked(e))
-        if (clickedButton != undefined){
-            if (clickedButton.text == 'Resume'){
-                setTimeout(() => {
-                    if(room == 1){page = 'dungeon'}
-                    else{page = 'main'}}, 250)
-            }
-            if (clickedButton.text == 'Settings'){
-                setTimeout(() => {page = 'settings'}, 250)
-            }
-        }
-    }
-    else if(page == 'settings'){
-        const clickedButton = optionButtons.find((b) => b.wasClicked(e))
-        if (clickedButton != undefined){
-            if (clickedButton.text == 'Back'){
-                setTimeout(() => {page = 'menu'}, 250)
-            }
-        }
-    }
-    else if(page == 'start'){
-        const clickedButton = startButtons.find((b) => b.wasClicked(e))
-        if (clickedButton != undefined){
-            if (clickedButton.text == 'Play'){
-                setTimeout(() => {page = 'character creation'}, 250)
-            }
-            if (clickedButton.text == 'Instructions'){
-                setTimeout(() => {page = 'instructions'}, 250)
-            }
-        }
-    }
-    else if(page == 'instructions'){
-        const clickedButton = instructButton.wasClicked(e)
-        if (clickedButton == true){
-            setTimeout(() => {page = 'start'}, 250)
-        }
-    }
-    else if(page == 'character creation'){
-        if (step == 1){
-            const clickedButton = nextButton.wasClicked(e)
-            if (clickedButton == true){
-                setTimeout(() => {step = 2}, 250)
-            }
-        }
-        else if (step == 2){
-            const clickedButton = nextButton.wasClicked(e)
-            if (clickedButton == true){
-                setTimeout(() => {step = 3}, 250)
-                roll = Roll(4)
-            }
-        }
-        else if (step == 3){
-            const clickedButton = statButtons.find((b) => b.wasClicked(e))
-            if (clickedButton != undefined){
-                if (clickedButton.text == 'Strength'){
-                    setTimeout(() => {strength = roll.total}, 250)
-                    let index = statButtons.indexOf(clickedButton)
-                    setTimeout(() => {statButtons.splice(index, 1)}, 250)
-                }
-                if (clickedButton.text == 'Intelligence'){
-                    setTimeout(() => {intelligence = roll.total}, 250)
-                    let index = statButtons.indexOf(clickedButton)
-                    setTimeout(() => {statButtons.splice(index, 1)}, 250)
-                }
-                if (clickedButton.text == 'Dexterity'){
-                    setTimeout(() => {dexterity = roll.total}, 250)
-                    let index = statButtons.indexOf(clickedButton)
-                    setTimeout(() => {statButtons.splice(index, 1)}, 250)
-                }
-                if (clickedButton.text == 'Constitution'){
-                    setTimeout(() => {constitution = roll.total}, 250)
-                    let index = statButtons.indexOf(clickedButton)
-                    setTimeout(() => {statButtons.splice(index, 1)}, 250)
-                }
-                if (clickedButton.text == 'Wisdom'){
-                    setTimeout(() => {wisdom = roll.total}, 250)
-                    let index = statButtons.indexOf(clickedButton)
-                    setTimeout(() => {statButtons.splice(index, 1)}, 250)
-                }
-                if (clickedButton.text == 'Perception'){
-                    setTimeout(() => {perception = roll.total}, 250)
-                    let index = statButtons.indexOf(clickedButton)
-                    setTimeout(() => {statButtons.splice(index, 1)}, 250)
-                }
-                if (clickedButton.text == 'Charisma'){
-                    setTimeout(() => {charisma = roll.total}, 250)
-                    let index = statButtons.indexOf(clickedButton)
-                    setTimeout(() => {statButtons.splice(index, 1)}, 250)
-                }
-                if (statButtons.length==1){
-                    setTimeout(() => {step = 4}, 250)
-                    setTimeout(() => {roll = Roll(3, false)}, 250)
-                    setTimeout(() => {hp = constitution*2+roll.total}, 250)
-                    setTimeout(() => {max_hp = hp}, 250)
-                }
-                else{
-                    setTimeout(() => {roll = Roll(4)}, 250)
-                }
-            }
-        }
-        else if(step == 4){
-            const clickedButton = nextButton.wasClicked(e)
-            if (clickedButton == true){
-                setTimeout(() => {step = 5}, 250)
-            }
-        }
-        else if(step == 5){
-            const clickedButton = nextButton.wasClicked(e)
-            if (clickedButton == true){
-                setTimeout(() => {step = 6}, 250)
-            }
-        }
-        else if(step == 6){
-            const clickedButton = nextButton.wasClicked(e)
-            if (clickedButton == true){
-                setTimeout(() => {step = 7}, 250)
-                setTimeout(() => {roll = Roll(20, false)}, 250)
-                setTimeout(() => {gold = roll.total}, 250)
-            }
-        }
-        else if(step == 7){
-            const clickedButton = nextButton.wasClicked(e)
-            if (clickedButton == true){
-                setTimeout(() => {step = 8}, 250)
-                setTimeout(() => {nextButton.text = 'Begin'; nextButton.y = 625}, 250)
-                setTimeout(() => {statText = [new Text(960,200,"Strength -- "+strength), new Text(960,250,"Intelligence -- "+intelligence),
-            new Text(960,300,"Dexterity -- "+dexterity), new Text(960,350,"Constitution -- "+constitution), new Text(960, 400, "Wisdom -- "+wisdom), new Text(960,450,"Perception -- "+perception),
-        new Text(960,500,"Charisma -- "+charisma), new Text(960,550,"Gold -- "+gold), new Text(960,600,"hit-points -- "+hp+"/"+max_hp)]}, 250)
-            }
-        }
-        else if(step == 8){
-            const clickedButton = nextButton.wasClicked(e)
-            if (clickedButton == true){
-                setTimeout(() => {page = 'main'}, 250)
-            }
-        }
-
-    }
-    else if(page == 'shop'){
-        const clickedButton = shopButtons.find((b) => b.wasClicked(e))
-        if (clickedButton != undefined){
-            setTimeout(() => {page = 'main'}, 250)
-        }
-        const clickedBuy = shopItems.find((b) => b.button.wasClicked(e))
-        if (clickedBuy != undefined){
-            if (clickedBuy.item == daggerImg){
-                if (gold>=5){
-                    backpack.items.push(new Item(daggerImg, backpack.items.length))
-                    gold -= 5
-                }
-            }
-            if (clickedBuy.item == sharpswordImg){
-                if (gold>=10){
-                    backpack.items.push(new Item(sharpswordImg, backpack.items.length))
-                    gold -= 10
-                }
-            }
-        }
-    }
-    else if(page == 'inventory'){
-        const clickedButton = backButton.wasClicked(e)
-        if (clickedButton != undefined){
-            setTimeout(() => {
-                if(room == 1){page = 'dungeon'}
-                else{page = 'main'}}, 250)
-        }
-        if (moveItem == false){
-            const clickedItem = backpack.items.find((i) => i.wasClicked(e))
-            if (clickedItem != undefined){
-                moveItem = true
-                movingItem = clickedItem
-                mousex = e.pageX
-                mousey = e.pageY
-                backpack.items.splice(backpack.items.indexOf(clickedItem), 1)
-            }
-        }
-        else{
-            const clickedSlot = Slots(e)
-            if (clickedSlot == 'equip'){
-                for (let i=0; i<backpack.items.length; i++){
-                    if(backpack.items[i].slot == 'weapon slot'){
-                        swap = true
-                    }
-                }
-                if (swap == false){
-                    backpack.items.push(new Item(movingItem.img, 'weapon slot'))
-                    moveItem = false
-                }
-                else{
-                    swap = false
-                }
-            }
-            else if (clickedSlot != false || clickedSlot == 0){
-                for (let i=0; i<backpack.items.length; i++){
-                    if (backpack.items[i].slotX+backpack.items[i].slotY*6 == clickedSlot){
-                        swap = true
-                    }
-                }
-                if (swap == false){
-                    backpack.items.push(new Item(movingItem.img, clickedSlot))
-                    moveItem = false
-                }
-                else{
-                    swap = false
-                }
-            }
-        }
-    }
-    else if(page == 'dungeon'){
-        const clickedButton = mainButtons.find((b) => b.wasClicked(e))
-        if (clickedButton != undefined){
-            if (clickedButton.text == 'Menu'){setTimeout(() => {page = 'menu'}, 250)}
-            if (clickedButton.text == 'Backpack'){setTimeout(() => {page = 'inventory'}, 250)}
-        }
-    }
-}
-window.addEventListener('click', onClick)
+window.addEventListener('mousemove', function(e){
+    moveX = e.pageX
+    moveY = e.pageY
+})
