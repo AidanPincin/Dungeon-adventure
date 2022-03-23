@@ -34,6 +34,8 @@ class Character{
         this.player = new Image()
         this.player.src = 'hero.png'
         this.weapon = 'fists'
+        this.healthPotions = 0
+        this.potions = 0
     }
     blit(){
         try{
@@ -149,6 +151,10 @@ class Backpack{
         }
         this.items.push(new Item(img,slot))
     }
+    removeItem(img){
+        const slot = this.items.findIndex(item => item.img = img)
+        this.items.splice(slot,1)
+    }
 }
 function getSlot(e){
     const { pageX: x, pageY: y } = e
@@ -196,12 +202,14 @@ class Item{
         if (this.move == true){
             const slot = getSlot(e)
             if (slot != undefined){
-                this.slotX = slot.slotX
-                this.slotY = slot.slotY
-                if (slot.slotX == 'weapon slot'){
-                    setTimeout(() => {character.weapon = this.src}, 0)
+                if (slot.slotX != 'weapon slot' || this.src != 'health-potion.png'){
+                    this.slotX = slot.slotX
+                    this.slotY = slot.slotY
+                    if (slot.slotX == 'weapon slot'){
+                        setTimeout(() => {character.weapon = this.src}, 0)
+                    }
+                    this.move = false
                 }
-                this.move = false
             }
         }
         else{
@@ -228,6 +236,29 @@ const money_bag = new object('money-bag.png',230,350)
 var character = new Character()
 const path = new Image()
 path.src = 'path.png'
+function generateRandomMonster(){
+    var chance = Math.random()
+    var monster = undefined
+    if (chance>0.8){
+        var pick = Math.round(Math.random()*4+1)
+        if (pick == 1){
+            monster = new Goblin()
+        }
+        if (pick == 2){
+            monster = new Troll()
+        }
+        if (pick == 3){
+            monster = new BugBear()
+        }
+        if (pick == 4){
+            monster = new Skeleton()
+        }
+        if (pick == 5){
+            monster = new Slime()
+        }
+    }
+    return monster
+}
 function Roll(dice, min=true, sides=5){
     const rolls = []
     var total = 0
@@ -285,13 +316,14 @@ class Txt{
     }
 }
 class ShopItem{
-    constructor(img,x,y,dmg,name,cost){
+    constructor(img,x,y,dmg,name,cost,uses=1){
         this.img = new Image()
         this.src = img
         this.img.src = img
         this.x = x
         this.cost = cost
         this.y = y
+        this.uses = uses
         this.button = new Button(x,y+175,90,30,"Buy",24)
         this.dmgTxt = new Txt(x+45,y+100,"Damage -- "+dmg,24)
         this.nameTxt = new Txt(x+45,y-35,name,30)
@@ -308,8 +340,12 @@ class ShopItem{
     wasClick(e){
         const clicked = this.button.wasClicked(e)
         if (clicked == true){
-            if (character.gold>=this.cost && backpack.items.length<25){
-                backpack.addItem(this.src)
+            if (character.gold>=this.cost && backpack.items.length<=25-this.uses){
+                for (let i=0; i<this.uses; i++){backpack.addItem(this.src)}
+                if (this.src == 'health-potion.png'){
+                    character.healthPotions += 3
+                    character.potions += 3
+                }
                 character.gold -= this.cost
             }
         }
@@ -328,9 +364,7 @@ class Room{
         this.monster = monster
     }
     draw(){
-        if (this.monster != undefined){
-            page = 'battle'
-        }
+        if (this.monster != undefined){page = 'battle'}
         drawRect('#7d7d7d',300,150,600,500)
         if (this.south == true){
             drawRect('#7d7d7d',550,650,100,150)
@@ -343,6 +377,9 @@ class Room{
             if (character.y>=690){
                 if (this.southRoom != 'town'){
                     room = this.southRoom
+                    if (rooms[room].monster == undefined){
+                        rooms[room].monster = generateRandomMonster()
+                    }
                     character.y = 150
                 }
                 else{
@@ -366,6 +403,9 @@ class Room{
             }
             if (character.y<=10){
                 room = this.northRoom
+                if (rooms[room].monster == undefined){
+                    rooms[room].monster = generateRandomMonster()
+                }
                 character.y = 550
             }
         }
@@ -384,6 +424,9 @@ class Room{
             }
             if (character.x<=160){
                 room = this.westRoom
+                if (rooms[room].monster == undefined){
+                    rooms[room].monster = generateRandomMonster()
+                }
                 character.x = 800
             }
         }
@@ -402,6 +445,9 @@ class Room{
             }
             if (character.x>=940){
                 room = this.eastRoom
+                if (rooms[room].monster == undefined){
+                    rooms[room].monster = generateRandomMonster()
+                }
                 character.x = 300
             }
         }
@@ -458,7 +504,7 @@ class Monster{
         this.txt5 = new Txt(600,610,"How would you like to attack?",24,'#ffffff')
         this.txt6 = new Txt(600,610,"The "+this.name+" is attacking you. How will you attempt to defend?",24,'#ffffff')
         this.nextButton = new Button(550,770,100,30,"Next",24)
-        this.attackButton = new Button(550,700,100,30,"Attack",24)
+        this.Buttons = [new Button(495,700,100,30,"Attack",24), new Button(605,700,100,30,"Drink Potion",20)]
         this.HMLButtons = [new Button(390,700,125,30,"Up High",24), new Button(525,700,150,30,"In The Middle",24), new Button(685,700,125,30,"Down Low",24)]
     }
     draw(){
@@ -492,7 +538,9 @@ class Monster{
             if (this.turn == 'player'){
                 if (this.step == 3){
                     this.txt4.blit()
-                    this.attackButton.blit()
+                    for (let i=0; i<this.Buttons.length; i++){
+                        this.Buttons[i].blit()
+                    }
                 }
                 if (this.step == 4){
                     this.txt5.blit()
@@ -507,6 +555,10 @@ class Monster{
                     for (let i=0; i<rollText.length; i++){rollText[i].blit()}
                 }
                 if (this.step == 7){
+                    for (let i=0; i<rollText.length; i++){rollText[i].blit()}
+                    this.nextButton.blit()
+                }
+                if (this.step == 8){
                     for (let i=0; i<rollText.length; i++){rollText[i].blit()}
                     this.nextButton.blit()
                 }
@@ -529,14 +581,62 @@ class Monster{
     }
 }
 class Goblin extends Monster{
-    constructor(name='goblin', dexterity=11, gold=Math.round(Math.random()*15+5), xp=15, dice=2){
+    constructor(name='goblin', dexterity=10, gold=Math.round(Math.random()*15+5), xp=15, dice=2){
         super(name,dexterity,gold,xp,dice)
         this.img = new Image()
         this.img.src = 'goblin.png'
         this.src = 'goblin.png'
         this.strength = 10
         this.armor = 10
-        this.hp = Math.round(Math.random()*(10)+15)
+        this.hp = Math.round(Math.random()*10+15)
+        this.max_hp = this.hp
+    }
+}
+class Troll extends Monster{
+    constructor(name='troll',dexterity=11,gold=Math.round(Math.random()*20+10), xp=25, dice=2){
+        super(name,dexterity,gold,xp,dice)
+        this.img = new Image()
+        this.img.src = 'troll.png'
+        this.src = 'troll.png'
+        this.strength = 11
+        this.armor = 11
+        this.hp = Math.round(Math.random()*15+15)
+        this.max_hp = this.hp
+    }
+}
+class Slime extends Monster{
+    constructor(name='slime',dexterity=8,gold=Math.round(Math.random()*7+3),xp=15,dice=2){
+        super(name,dexterity,gold,xp,dice)
+        this.img = new Image()
+        this.img.src = 'green-slime.png'
+        this.src = 'green-slime.png'
+        this.strength = 10
+        this.armor = 8
+        this.hp = Math.round(Math.random()*5+10)
+        this.max_hp = this.hp
+    }
+}
+class BugBear extends Monster{
+    constructor(name='bug bear',dexterity=12,gold=Math.round(Math.random()*20+10),xp=30,dice=3){
+        super(name,dexterity,gold,xp,dice)
+        this.img = new Image()
+        this.img.src = 'bear.png'
+        this.src = 'bear.png'
+        this.strength = 11
+        this.armor = 12
+        this.hp = Math.round(Math.random()*20+20)
+        this.max_hp = this.hp
+    }
+}
+class Skeleton extends Monster{
+    constructor(name='skeleton',dexterity=11,gold=Math.round(Math.random()*15+5),xp=10,dice=2){
+        super(name,dexterity,gold,xp,dice)
+        this.img = new Image()
+        this.img.src = 'skeleton.png'
+        this.src = 'skeleton.png'
+        this.strength = 10
+        this.armor = 10
+        this.hp = Math.round(Math.random()*10+5)
         this.max_hp = this.hp
     }
 }
@@ -544,39 +644,41 @@ var stats = undefined
 const biggerPlayerImg = new Image()
 biggerPlayerImg.src = 'bigger_hero.png'
 var rooms = [new Room(true,true,false,false,1,'town',undefined,undefined), new Room(true,true,true,false,2,0,3,undefined,new Goblin()), new Room(true,true,true,true,12,1,7,8),
-new Room(false,false,true,true,undefined,undefined,4,1), new Room(true,false,true,true,6,undefined,5,3), 
-new Room(false,false,false,true,undefined,undefined,undefined,4,new Goblin()), new Room(true,true,false,true,20,4,undefined,7),
-new Room(false,false,true,true,undefined,undefined,6,2), new Room(false,false,true,true,undefined,undefined,2,9),
-new Room(false,true,true,true,undefined,10,8,15), new Room(true,true,false,false,9,11), 
-new Room(true,false,false,false,10), new Room(true,true,false,true,37,2,undefined,13,new Goblin()),
-new Room(false,false,true,true,undefined,undefined,12,14), new Room(true,true,true,true,44,15,13,19), 
-new Room(true,true,true,true,14,16,9,18), new Room(true,false,false,true,15,undefined,undefined,17),
-new Room(false,false,true,false,undefined,undefined,16), new Room(false,false,true,false,undefined,undefined,15),
-new Room(true,false,true,false,45,undefined,14,undefined,new Goblin()), new Room(true,true,false,false,21,6), 
-new Room(true,true,true,false,23,20,22), new Room(false,false,false,true,undefined,undefined,undefined,21),
-new Room(true,true,false,false,24,21), new Room(true,true,false,true,25,23,undefined,35,new Goblin()),
-new Room(true,true,false,false,26,24), new Room(false,true,false,true,undefined,25,undefined,27),
-new Room(false,false,true,true,undefined,undefined,26,28), new Room(false,true,true,false,undefined,29,27),
-new Room(true,true,true,true,28,34,32,30), new Room(false,false,true,true,undefined,undefined,29,31,new Goblin()),
-new Room(false,false,true,false,undefined,undefined,30), new Room(false,false,true,true,undefined,undefined,33,29),
-new Room(false,false,false,true,undefined,undefined,undefined,32), new Room(true,true,true,true,29,37,35,38),
-new Room(false,true,true,true,undefined,36,24,34), new Room(true,false,false,false,35),
-new Room(true,true,false,false,34,12), new Room(false,true,true,true,undefined,39,34,41), 
-new Room(true,true,false,false,38,40), new Room(true,false,false,false,39,undefined,undefined,undefined,new Goblin()),
-new Room(false,true,true,true,undefined,42,38,48), new Room(true,true,false,false,41,43),
-new Room(true,true,false,false,42,44), new Room(true,true,false,false,43,14,undefined,undefined,new Goblin()),
-new Room(true,true,false,false,46,19), new Room(true,true,false,false,47,45),
-new Room(true,true,true,false,49,46,48), new Room(false,false,true,true,undefined,undefined,41,47),
-new Room(true,true,false,false,50,47), new Room(false,true,true,true,undefined,49,52,51),
-new Room(false,false,true,false,undefined,undefined,50), new Room(true,false,false,true,53,undefined,undefined,50),
-new Room(true,true,true,true,57,52,58,54,new Goblin()), new Room(true,false,true,true,56,undefined,53,55), 
-new Room(false,false,true,false,undefined,undefined,54), new Room(false,true,false,false,undefined,54),
-new Room(false,true,false,false,undefined,53), new Room(true,false,true,true,59,undefined,60,53),
-new Room(false,true,false,false,undefined,58), new Room(true,false,false,true,61,undefined,undefined,58,new Goblin()),
-new Room(false,true,false,false,undefined,60)]
+new Room(false,false,true,true,undefined,undefined,4,1), new Room(true,false,true,true,6,undefined,5,3), //4
+new Room(false,false,false,true,undefined,undefined,undefined,4,new BugBear()), new Room(true,true,false,true,20,4,undefined,7), //6
+new Room(false,false,true,true,undefined,undefined,6,2), new Room(false,false,true,true,undefined,undefined,2,9), //8
+new Room(false,true,true,true,undefined,10,8,15,new Skeleton()), new Room(true,true,false,false,9,11), //10
+new Room(true,false,false,false,10,undefined,undefined,undefined,new BugBear()), new Room(true,true,false,true,37,2,undefined,13), //12
+new Room(false,false,true,true,undefined,undefined,12,14,new Goblin()), new Room(true,true,true,true,44,15,13,19), //14
+new Room(true,true,true,true,14,16,9,18,new Slime()), new Room(true,false,false,true,15,undefined,undefined,17), //16
+new Room(false,false,true,false,undefined,undefined,16,undefined,new Troll()), new Room(false,false,true,false,undefined,undefined,15), //18
+new Room(true,false,true,false,45,undefined,14,undefined), new Room(true,true,false,false,21,6),  //20
+new Room(true,true,true,false,23,20,22), new Room(false,false,false,true,undefined,undefined,undefined,21),  //22
+new Room(true,true,false,false,24,21), new Room(true,true,false,true,25,23,undefined,35), //24
+new Room(true,true,false,false,26,24), new Room(false,true,false,true,undefined,25,undefined,27,new Goblin()),  //26
+new Room(false,false,true,true,undefined,undefined,26,28), new Room(false,true,true,false,undefined,29,27,undefined,new Skeleton()),  //28
+new Room(true,true,true,true,28,34,32,30), new Room(false,false,true,true,undefined,undefined,29,31),  //30
+new Room(false,false,true,false,undefined,undefined,30), new Room(false,false,true,true,undefined,undefined,33,29), //32
+new Room(false,false,false,true,undefined,undefined,undefined,32), new Room(true,true,true,true,29,37,35,38,new Troll()),  //34
+new Room(false,true,true,true,undefined,36,24,34), new Room(true,false,false,false,35), //36
+new Room(true,true,false,false,34,12), new Room(false,true,true,true,undefined,39,34,41),   //38
+new Room(true,true,false,false,38,40), new Room(true,false,false,false,39,undefined,undefined,undefined,new Troll()),  //40
+new Room(false,true,true,true,undefined,42,38,48,new Skeleton()), new Room(true,true,false,false,41,43),  //42
+new Room(true,true,false,false,42,44), new Room(true,true,false,false,43,14,undefined,undefined),  //44
+new Room(true,true,false,false,46,19), new Room(true,true,false,false,47,45),   //46
+new Room(true,true,true,false,49,46,48), new Room(false,false,true,true,undefined,undefined,41,47),   //48
+new Room(true,true,false,false,50,47), new Room(false,true,true,true,undefined,49,52,51),  //50
+new Room(false,false,true,false,undefined,undefined,50), new Room(true,false,false,true,53,undefined,undefined,50,new BugBear()),   //52
+new Room(true,true,true,true,57,52,58,54), new Room(true,false,true,true,56,undefined,53,55),   //54
+new Room(false,false,true,false,undefined,undefined,54,undefined,new Slime()), new Room(false,true,false,false,undefined,54),   //56
+new Room(false,true,false,false,undefined,53), new Room(true,false,true,true,59,undefined,60,53),    //58
+new Room(false,true,false,false,undefined,58), new Room(true,false,false,true,61,undefined,undefined,58),   //60
+new Room(false,true,false,false,undefined,60,undefined,undefined,new BugBear())]  //61
 const shopItems = [new ShopItem('dagger.png',100,75,'1-6','Dagger',5), new ShopItem('sharpsword.png',300,75,'1-10','Sharp Sword',10),
 new ShopItem('morningstar.png',500,75,'2-12','Morningstar',20), new ShopItem('longsword.png',100,375,'3-18','Long Sword',50), 
-new ShopItem('battleaxe.png',300,375,'4-24','Battleaxe',100),new ShopItem('greatsword.png',500,375,'5-30','Great Sword',250)]
+new ShopItem('battleaxe.png',300,375,'4-24','Battleaxe',125),new ShopItem('greatsword.png',500,375,'5-30','Great Sword',250),
+new ShopItem('health-potion.png',700,75,'','Health Potion(3)',15,3)]
+shopItems[6].dmgTxt = new Txt(745,175,"Heals: 5-30",24)
 const backButton = new Button(570,600,60,30,"Back",24)
 const nextButton = new Button(570,600,60,30,"Next",24)
 var roll = Roll(4)
@@ -594,7 +696,7 @@ const startButtons = [new Button(562.5,350,75,30,"Play",24), new Button(562.5,39
 const t1 = new Txt(600,0,"Welcome To Dungeon Adventure!", 48)
 const menuButtons = [new Button(550,300,100,30,"Resume",24), new Button(535,340,130,30,"Instructions",24), new Button(550,380,100,30,"Settings",24)]
 const mainButtons = [new Button(290,5,125,30,"Backpack",24), new Button(425,5,75,30,"Menu",24), new Button(510,5,75,30,"Stats",24)]
-const deadTxt = [new Txt(600,100,"You are dead!",24,"#ff0000"), new Txt(600,130,"But wait its not over. Let's see if the gods will revive you",24),
+var deadTxt = [new Txt(600,100,"You are dead!",24,"#ff0000"), new Txt(600,130,"But wait its not over. Let's see if the gods will revive you",24),
 new Txt(600,160,"You must roll a(n) "+mustRoll+" or higher on a 20-sided die",24),new Txt(600,190,"You can be revived up to 3 times with each time getting harder to be revived",24),
 new Txt(600,220,"When you get revived you get sent back to the start of the dungeon with half of your max hitpoints(rounded up)",24)]
 const gameOverTxt = [new Txt(600,250,"Game Over!",48,'#ff0000'), new Txt(600,300,"press 'r' to restart",24)]
@@ -787,6 +889,9 @@ window.addEventListener('click', function(e){
                 character.hp = Math.ceil(character.max_hp/2)
                 page = 'dungeon'
             }
+            deadTxt = [new Txt(600,100,"You are dead!",24,"#ff0000"), new Txt(600,130,"But wait its not over. Let's see if the gods will revive you",24),
+            new Txt(600,160,"You must roll a(n) "+mustRoll+" or higher on a 20-sided die",24),new Txt(600,190,"You can be revived up to 3 times with each time getting harder to be revived",24),
+            new Txt(600,220,"When you get revived you get sent back to the start of the dungeon with half of your max hitpoints(rounded up)",24)]
         }
     }
     else if (instructionsPage == true){
@@ -947,8 +1052,27 @@ window.addEventListener('click', function(e){
         else{
             if (battle.turn == 'player'){
                 if (battle.step == 3){
-                    const clicked = battle.attackButton.wasClicked(e)
-                    if (clicked == true){battle.step += 1}
+                    const clicked = battle.Buttons.find((b) => b.wasClicked(e))
+                    if (clicked != undefined){
+                        if (clicked.text == 'Attack'){
+                            battle.step += 1
+                        }
+                        if (clicked.text == 'Drink Potion' && character.potions>0 && character.hp<character.max_hp){
+                            battle.step = 8
+                            character.potions -= 1
+                            character.healthPotions -= 1
+                            roll = Roll(5,false)
+                            const total = roll.total + character.constitutionBonus
+                            character.hp += total
+                            if (character.hp>character.max_hp){character.hp = character.max_hp}
+                            rollText = [new Txt(600,610,"You drink your healing potion",24,'#ffffff'),
+                            new Txt(600,640,"Rolling to heal you get "+roll.rolls+" for a total of "+roll.total,24,'#ffffff'),
+                            new Txt(600,670,"plus your constitution bonus of "+character.constitutionBonus+" gives you a total of "+total,24,'#ffffff'),
+                            new Txt(600,700,"So you heal for "+total+" HP",24,'#ffffff'),
+                            new Txt(600,730,"It is now the "+battle.name+"'s turn",24,"#ffffff")]
+                            backpack.removeItem('health-potion.png')
+                        }
+                    }
                 }
                 else if (battle.step == 4){
                     const clicked = battle.HMLButtons.find((b) => b.wasClicked(e))
@@ -958,7 +1082,7 @@ window.addEventListener('click', function(e){
                         battle.step+=1
                         rollText = [new Txt(600,610,"You attack the "+battle.name+" "+battle.playerChoice,24,'#ffffff'), 
                         new Txt(600,640,"The "+battle.name+" defends "+battle.monsterChoice,24,'#ffffff'), 
-                        new Txt(600,670,"We first must roll to hit the goblin on a 20-sided die",24,"#ffffff"),
+                        new Txt(600,670,"We first must roll to hit the "+battle.name+" on a 20-sided die",24,"#ffffff"),
                         new Txt(600,700,"You must roll the "+battle.name+"'s armor of "+battle.armor+" or higher",24,'#ffffff')]
                     }
                 }
@@ -985,8 +1109,7 @@ window.addEventListener('click', function(e){
                     if (clicked == true){
                         if (battle.playerDmg != undefined){
                             battle.step += 1
-                            // need to figure out how to get '.png' out of character.weapon
-                            rollText = [new Txt(600,610,"Rolling to hit the goblin you got "+battle.playerDmg.rolls+" for a total of "+battle.playerDmg.total+" damage with your "+character.weapon.slice(0,character.weapon.length-4),24,'#00ff00')]
+                            rollText = [new Txt(600,610,"Rolling to hit the "+battle.name+" you got "+battle.playerDmg.rolls+" for a total of "+battle.playerDmg.total+" damage with your "+character.weapon.slice(0,character.weapon.length-4),24,'#00ff00')]
                             if (battle.playerChoice == battle.monsterChoice){
                                 battle.playerDmg.total = Math.ceil(battle.playerDmg.total/2)
                                 rollText.push(new Txt(600,640,"But since the "+battle.name+" successfully defended your attack you only do have damage(rounded up) for a total of "+battle.playerDmg.total,24,'#ff0000'))
@@ -1023,6 +1146,13 @@ window.addEventListener('click', function(e){
                             battle.turn = 'monster'
                             battle.step = 3
                         }
+                    }
+                }
+                else if (battle.step == 8){
+                    const clicked = battle.nextButton.wasClicked(e)
+                    if (clicked == true){
+                        battle.step = 3
+                        battle.turn = 'monster'
                     }
                 }
             }
@@ -1076,6 +1206,7 @@ window.addEventListener('click', function(e){
                                 gameOver = true
                                 deadTxt.push(new Txt(600,390,"The gods ignore you leaving your dead body for the monsters of the dungeon to feed on",24,'#ff0000'))
                             }
+                            nextButton.text = 'Next'
                         }
                         else{
                             battle.turn = 'player'
@@ -1091,7 +1222,9 @@ window.addEventListener('keydown', function(e){
     if (page == 'game over'){
         if (e.key == 'r'){
             page = 'start'
+            console.log(page)
             room = 0
+            dead = false
             mustRoll = 8
             gameOver = false
             backpack = new Backpack()
