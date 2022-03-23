@@ -5,6 +5,7 @@ var instructionsPage = false
 var inInventory = false
 var inMenu = false
 var inSettings = false
+var inStats = false
 var step = 1
 var up = false
 var down = false
@@ -16,7 +17,10 @@ var l = 2500
 var r = 2500
 var room = 0
 var time = 0
+var dead = false
 var moveBattlePlayer = -200
+var mustRoll = 8
+var gameOver = false
 function drawRect(color,x,y,width,height){
     ctx.fillStyle = color
     ctx.fillRect(x,y,width,height)
@@ -142,7 +146,6 @@ class Backpack{
         if (typeof slot != 'number') {
             const possibleSlots = [...Array(this.slotCount).keys()].filter(i => this.items.every(item => item.slot !== i))
             slot = Math.min(...possibleSlots)
-            console.log(possibleSlots, slot)
         }
         this.items.push(new Item(img,slot))
     }
@@ -217,12 +220,12 @@ class Item{
     }
 }
 const droppedItems = []
-const backpack = new Backpack()
+var backpack = new Backpack()
 const shop = new object('shop.png',120,250,true)
 const man = new object('man.png',195,390)
 const speech_bubble = new object('chat.png',225,350)
 const money_bag = new object('money-bag.png',230,350)
-const character = new Character()
+var character = new Character()
 const path = new Image()
 path.src = 'path.png'
 function Roll(dice, min=true, sides=5){
@@ -537,9 +540,10 @@ class Goblin extends Monster{
         this.max_hp = this.hp
     }
 }
+var stats = undefined
 const biggerPlayerImg = new Image()
 biggerPlayerImg.src = 'bigger_hero.png'
-const rooms = [new Room(true,true,false,false,1,'town',undefined,undefined), new Room(true,true,true,false,2,0,3,undefined,new Goblin()), new Room(true,true,true,true,12,1,7,8),
+var rooms = [new Room(true,true,false,false,1,'town',undefined,undefined), new Room(true,true,true,false,2,0,3,undefined,new Goblin()), new Room(true,true,true,true,12,1,7,8),
 new Room(false,false,true,true,undefined,undefined,4,1), new Room(true,false,true,true,6,undefined,5,3), 
 new Room(false,false,false,true,undefined,undefined,undefined,4,new Goblin()), new Room(true,true,false,true,20,4,undefined,7),
 new Room(false,false,true,true,undefined,undefined,6,2), new Room(false,false,true,true,undefined,undefined,2,9),
@@ -589,10 +593,19 @@ new Txt(600,230,"Press the 'e' key to interact when it shows above your player's
 const startButtons = [new Button(562.5,350,75,30,"Play",24), new Button(562.5,390,135,30,"Instructions",24), new Button(562.5,430,100,30,"Settings",24)]
 const t1 = new Txt(600,0,"Welcome To Dungeon Adventure!", 48)
 const menuButtons = [new Button(550,300,100,30,"Resume",24), new Button(535,340,130,30,"Instructions",24), new Button(550,380,100,30,"Settings",24)]
-const mainButtons = [new Button(290,5,125,30,"Backpack",24), new Button(425,5,75,30,"Menu",24)]
+const mainButtons = [new Button(290,5,125,30,"Backpack",24), new Button(425,5,75,30,"Menu",24), new Button(510,5,75,30,"Stats",24)]
+const deadTxt = [new Txt(600,100,"You are dead!",24,"#ff0000"), new Txt(600,130,"But wait its not over. Let's see if the gods will revive you",24),
+new Txt(600,160,"You must roll a(n) "+mustRoll+" or higher on a 20-sided die",24),new Txt(600,190,"You can be revived up to 3 times with each time getting harder to be revived",24),
+new Txt(600,220,"When you get revived you get sent back to the start of the dungeon with half of your max hitpoints(rounded up)",24)]
+const gameOverTxt = [new Txt(600,250,"Game Over!",48,'#ff0000'), new Txt(600,300,"press 'r' to restart",24)]
 function update(){
     drawRect('#007d00',0,0,1200,800)
-    if (instructionsPage == true){
+    if (page == 'game over'){for (let i=0; i<gameOverTxt.length; i++){gameOverTxt[i].blit()}}
+    else if (dead == true){
+        for (let i=0; i<deadTxt.length; i++){deadTxt[i].blit()}
+        nextButton.blit()
+    }
+    else if (instructionsPage == true){
         backButton.blit()
         for (let i=0; i<instructions.length; i++){
             instructions[i].blit()
@@ -610,6 +623,20 @@ function update(){
         for (let i=0; i<menuButtons.length; i++){
             menuButtons[i].blit()
         }
+    }
+    else if (inStats == true){
+        stats = [new Txt(600,100,"HP -- "+character.hp+"/"+character.max_hp,24),new Txt(600,130,"Gold -- "+character.gold,24),
+        new Txt(600,160,"XP -- "+character.xp,24),
+        new Txt(600,190,"Strength: "+character.strength+"  ||  Bonus:"+character.strengthBonus,24),
+        new Txt(600,220,'Intelligence: '+character.intelligence+"  ||  Bonus:"+character.intelligenceBonus,24), 
+        new Txt(600,250,"Dexterity: "+character.dexterity+"  ||  Bonus:"+character.dexterityBonus,24),
+        new Txt(600,280,"Constitution: "+character.constitution+"  ||  Bonus:"+character.constitutionBonus,24), 
+        new Txt(600,310,"Wisdom: "+character.wisdom+"  ||  Bonus:"+character.wisdomBonus,24),
+        new Txt(600,340,"Perception: "+character.perception+"  ||  Bonus:"+character.perceptionBonus,24),
+        new Txt(600,370,"Charisma: "+character.charisma+"  ||  Bonus:"+character.charismaBonus,24)]
+        drawRect('#7d7d7d',400,90,400,500)
+        backButton.blit()
+        for (let i=0; i<stats.length; i++){stats[i].blit()}
     }
     else if (page == 'start'){
         t1.blit()
@@ -748,7 +775,21 @@ function update(){
 }
 update()
 window.addEventListener('click', function(e){
-    if (instructionsPage == true){
+    if (dead == true){
+        const clicked = nextButton.wasClicked(e)
+        if (clicked == true){
+            if (gameOver == true){
+                page = 'game over'
+            }
+            else{
+                room = 0
+                dead = false
+                character.hp = Math.ceil(character.max_hp/2)
+                page = 'dungeon'
+            }
+        }
+    }
+    else if (instructionsPage == true){
         const clicked = backButton.wasClicked(e)
         if (clicked == true){
             instructionsPage = false
@@ -779,6 +820,12 @@ window.addEventListener('click', function(e){
             if (clicked.text == 'Resume'){
                 inMenu = false
             }
+        }
+    }
+    else if (inStats == true){
+        const clicked = backButton.wasClicked(e)
+        if (clicked == true){
+            inStats = false
         }
     }
     else if (page == 'start'){
@@ -851,6 +898,9 @@ window.addEventListener('click', function(e){
             if (clicked.text == 'Menu'){
                 inMenu = true
             }
+            if (clicked.text == 'Stats'){
+                inStats = true
+            }
         }
     }
     else if (page == 'shop'){
@@ -866,6 +916,9 @@ window.addEventListener('click', function(e){
             }
             if (clicked.text == 'Menu'){
                 inMenu = true
+            }
+            if (clicked.text == 'Stats'){
+                inStats = true
             }
         }
     }
@@ -933,7 +986,7 @@ window.addEventListener('click', function(e){
                         if (battle.playerDmg != undefined){
                             battle.step += 1
                             // need to figure out how to get '.png' out of character.weapon
-                            rollText = [new Txt(600,610,"Rolling to hit the goblin you got "+battle.playerDmg.rolls+" for a total of "+battle.playerDmg.total+" damage with your "+character.weapon,24,'#00ff00')]
+                            rollText = [new Txt(600,610,"Rolling to hit the goblin you got "+battle.playerDmg.rolls+" for a total of "+battle.playerDmg.total+" damage with your "+character.weapon.slice(0,character.weapon.length-4),24,'#00ff00')]
                             if (battle.playerChoice == battle.monsterChoice){
                                 battle.playerDmg.total = Math.ceil(battle.playerDmg.total/2)
                                 rollText.push(new Txt(600,640,"But since the "+battle.name+" successfully defended your attack you only do have damage(rounded up) for a total of "+battle.playerDmg.total,24,'#ff0000'))
@@ -942,6 +995,7 @@ window.addEventListener('click', function(e){
                             if (battle.hp<=0){
                                 battle.hp = 0
                                 character.gold += battle.gold
+                                character.xp += battle.xp
                                 rollText.push(new Txt(600,670,"You have killed the "+battle.name+"!",24,'#00ff00'))
                                 rollText.push(new Txt(600,700,"You search the dead "+battle.name+"'s body and find "+battle.gold+" gold. You now have "+character.gold+" gold",24,'#ffffff'))
                                 rollText.push(new Txt(600,730,"You also gain "+battle.xp+" experience for killing the "+battle.name,24,'#ffffff'))
@@ -1009,8 +1063,24 @@ window.addEventListener('click', function(e){
                 else if (battle.step == 5){
                     const clicked = battle.nextButton.wasClicked(e)
                     if (clicked == true){
-                        battle.turn = 'player'
-                        battle.step = 3
+                        if(character.hp==0){
+                            dead = true
+                            roll = Math.round(Math.random()*19+1)
+                            total = roll+character.wisdomBonus
+                            deadTxt.push(new Txt(600,290,"Rolling the die you get a(n) "+roll+" plus your wisdom bonus of "+character.wisdomBonus+" gets you a total of "+total,24))
+                            if (total>=mustRoll){
+                                mustRoll += 4
+                                deadTxt.push(new Txt(600,390,"The gods are pleased with you and revive you back to the start of the dungeon!",24,'#00ff00'))
+                            }
+                            else{
+                                gameOver = true
+                                deadTxt.push(new Txt(600,390,"The gods ignore you leaving your dead body for the monsters of the dungeon to feed on",24,'#ff0000'))
+                            }
+                        }
+                        else{
+                            battle.turn = 'player'
+                            battle.step = 3
+                        }
                     }
                 }
             }
@@ -1018,6 +1088,56 @@ window.addEventListener('click', function(e){
     }
 })
 window.addEventListener('keydown', function(e){
+    if (page == 'game over'){
+        if (e.key == 'r'){
+            page = 'start'
+            room = 0
+            mustRoll = 8
+            gameOver = false
+            backpack = new Backpack()
+            character = new Character()
+            roll = Roll(4)
+            rollText = [new Txt(600,100,"Rolling for you attributes you got "+roll.rolls,24),
+            new Txt(600,130,"So the 3 highest values added together comes to "+roll.total,24),
+            new Txt(600,160,"Where would you like to assign your value of "+roll.total+"?",24)]
+            rooms = [new Room(true,true,false,false,1,'town',undefined,undefined), new Room(true,true,true,false,2,0,3,undefined,new Goblin()), new Room(true,true,true,true,12,1,7,8),
+            new Room(false,false,true,true,undefined,undefined,4,1), new Room(true,false,true,true,6,undefined,5,3), 
+            new Room(false,false,false,true,undefined,undefined,undefined,4,new Goblin()), new Room(true,true,false,true,20,4,undefined,7),
+            new Room(false,false,true,true,undefined,undefined,6,2), new Room(false,false,true,true,undefined,undefined,2,9),
+            new Room(false,true,true,true,undefined,10,8,15), new Room(true,true,false,false,9,11), 
+            new Room(true,false,false,false,10), new Room(true,true,false,true,37,2,undefined,13,new Goblin()),
+            new Room(false,false,true,true,undefined,undefined,12,14), new Room(true,true,true,true,44,15,13,19), 
+            new Room(true,true,true,true,14,16,9,18), new Room(true,false,false,true,15,undefined,undefined,17),
+            new Room(false,false,true,false,undefined,undefined,16), new Room(false,false,true,false,undefined,undefined,15),
+            new Room(true,false,true,false,45,undefined,14,undefined,new Goblin()), new Room(true,true,false,false,21,6), 
+            new Room(true,true,true,false,23,20,22), new Room(false,false,false,true,undefined,undefined,undefined,21),
+            new Room(true,true,false,false,24,21), new Room(true,true,false,true,25,23,undefined,35,new Goblin()),
+            new Room(true,true,false,false,26,24), new Room(false,true,false,true,undefined,25,undefined,27),
+            new Room(false,false,true,true,undefined,undefined,26,28), new Room(false,true,true,false,undefined,29,27),
+            new Room(true,true,true,true,28,34,32,30), new Room(false,false,true,true,undefined,undefined,29,31,new Goblin()),
+            new Room(false,false,true,false,undefined,undefined,30), new Room(false,false,true,true,undefined,undefined,33,29),
+            new Room(false,false,false,true,undefined,undefined,undefined,32), new Room(true,true,true,true,29,37,35,38),
+            new Room(false,true,true,true,undefined,36,24,34), new Room(true,false,false,false,35),
+            new Room(true,true,false,false,34,12), new Room(false,true,true,true,undefined,39,34,41), 
+            new Room(true,true,false,false,38,40), new Room(true,false,false,false,39,undefined,undefined,undefined,new Goblin()),
+            new Room(false,true,true,true,undefined,42,38,48), new Room(true,true,false,false,41,43),
+            new Room(true,true,false,false,42,44), new Room(true,true,false,false,43,14,undefined,undefined,new Goblin()),
+            new Room(true,true,false,false,46,19), new Room(true,true,false,false,47,45),
+            new Room(true,true,true,false,49,46,48), new Room(false,false,true,true,undefined,undefined,41,47),
+            new Room(true,true,false,false,50,47), new Room(false,true,true,true,undefined,49,52,51),
+            new Room(false,false,true,false,undefined,undefined,50), new Room(true,false,false,true,53,undefined,undefined,50),
+            new Room(true,true,true,true,57,52,58,54,new Goblin()), new Room(true,false,true,true,56,undefined,53,55), 
+            new Room(false,false,true,false,undefined,undefined,54), new Room(false,true,false,false,undefined,54),
+            new Room(false,true,false,false,undefined,53), new Room(true,false,true,true,59,undefined,60,53),
+            new Room(false,true,false,false,undefined,58), new Room(true,false,false,true,61,undefined,undefined,58,new Goblin()),
+            new Room(false,true,false,false,undefined,60)]
+            step = 1
+            l = 2500
+            r = 2500
+            time = 0
+            moveBattlePlayer = -200
+        }
+    }
     if (e.key == 'w'){up = true}
     if (e.key == 's'){down = true}
     if (e.key == 'a'){left = true}
