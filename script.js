@@ -999,6 +999,7 @@ window.addEventListener('click', function(e){
                                 rollText.push(new Txt(600,700,"But since you successfully defend the attack the "+battle.name+" does half damage(rounded up) for a total of "+roll.total,24,'#00ff00'))
                             }
                             character.hp -= roll.total
+                            if (character.hp<0){character.hp=0}
                         }
                         else{
                             rollText.push(new Txt(600,640,"The "+battle.name+" rolled less than your armor and misses you!",24,'#00ff00'))
