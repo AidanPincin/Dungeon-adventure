@@ -1,6 +1,6 @@
 const canvas = document.querySelector('canvas')
 const ctx = canvas.getContext('2d')
-var page = 'start'
+var page = 'town'
 var instructionsPage = false
 var inInventory = false
 var inMenu = false
@@ -21,6 +21,7 @@ var dead = false
 var moveBattlePlayer = -200
 var mustRoll = 8
 var gameOver = false
+var showShopItems = 'weapon'
 function drawRect(color,x,y,width,height){
     ctx.fillStyle = color
     ctx.fillRect(x,y,width,height)
@@ -29,6 +30,7 @@ class Character{
     constructor(){
         this.xp = 0
         this.x = 550
+        this.wearing = undefined
         this.armor = 8
         this.y = 350
         this.player = new Image()
@@ -36,6 +38,24 @@ class Character{
         this.weapon = 'fists'
         this.healthPotions = 0
         this.potions = 0
+        //testing
+        this.strength = 10
+        this.intelligence = 10
+        this.dexterity = 10
+        this.constitution = 10
+        this.wisdom = 10
+        this.perception = 10
+        this.charisma = 10
+        this.hp = 30
+        this.max_hp = 30
+        this.gold = 75
+        this.strengthBonus = 0
+        this.intelligenceBonus = 0
+        this.dexterityBonus = 0
+        this.constitutionBonus = 0
+        this.wisdomBonus = 0
+        this.perceptionBonus = 0
+        this.charismaBonus = 0
     }
     blit(){
         try{
@@ -127,6 +147,9 @@ class Backpack{
         this.fist = new Image()
         this.fist.src = 'fist.png'
         this.slotCount = 25
+        this.armor = new Image
+        this.armor.src = 'armor.png'
+        this.arc = 'armor.png'
     }
     blit(){
         drawRect('#000000',625,50,400,1)
@@ -134,8 +157,12 @@ class Backpack{
         drawRect('#000000',1025,50,1,450)
         drawRect('#000000',935,50,1,90)
         drawRect('#000000',935,140,90,1)
+        drawRect('#000000',715,50,1,90)
+        drawRect('#000000',625,140,90,1)
         try{if (character.weapon == 'fists'){ctx.drawImage(this.fist,935,50)}}
         catch{this.fist.src = 'fist.png'}
+        try{if (character.wearing == undefined){ctx.drawImage(this.armor,625,50)}}
+        catch{this.armor.src = this.arc}
         for (let i=0; i<6; i++){
             drawRect('#000000',175,50+i*90,450,1)
             drawRect('#000000',175+i*90,50,1,450)
@@ -163,8 +190,11 @@ function getSlot(e){
             }
         }
     }
-    if (x>=935 && x<=1025 && y>= 50 && y<=140){
+    if (x>=945 && x<=1035 && y>=60 && y<=150){
         return {'slotX':'weapon slot', 'slotY':'weapon slot'}
+    }
+    if (x>=635 && x<=720 && y>=60 && y<=150){
+        return {'slotX':'armor slot', 'slotY':'armor slot'}
     }
 }
 class Item{
@@ -187,6 +217,7 @@ class Item{
         if (this.move == false){
             try{
                 if (this.slotX == 'weapon slot'){ctx.drawImage(this.img,935,50)}
+                else if (this.slotX == 'armor slot'){ctx.drawImage(this.img,625,50)}
                 else{ctx.drawImage(this.img,175+this.slotX*90,50+this.slotY*90)}
             }
             catch{this.img.src = this.src}
@@ -201,7 +232,7 @@ class Item{
         if (this.move == true){
             const slot = getSlot(e)
             if (slot != undefined){
-                if (slot.slotX != 'weapon slot' || this.type == 'weapon'){
+                if (this.type == 'weapon' && slot.slotX != 'armor slot'){
                     this.slotX = slot.slotX
                     this.slotY = slot.slotY
                     this.slot = this.slotX + this.slotY*5
@@ -210,13 +241,43 @@ class Item{
                     }
                     this.move = false
                 }
+                else if(this.type == 'armor' && slot.slotX != 'weapon slot'){
+                    this.slotX = slot.slotX
+                    this.slotY = slot.slotY
+                    this.slot = this.slotX + this.slotY*5
+                    if (this.slotX == 'armor slot'){
+                        setTimeout(() => {character.wearing = this.src}, 0)
+                        if (this.src == 'leather-armor.png'){
+                            setTimeout(() => {character.armor = 10}, 0)
+                        }
+                        if (this.src == 'studded-leather-armor.png'){
+                            setTimeout(() => {character.armor = 12}, 0)
+                        }
+                    }
+                    this.move = false
+                }
+                else{
+                    if (slot.slotX != 'weapon slot' && slot.slotX != 'armor slot'){
+                        this.slotX = slot.slotX
+                        this.slotY = slot.slotY
+                        this.slot = this.slotX + this.slotY*5
+                        this.move = false
+                    }
+                }
             }
         }
         else{
             if (this.slotX == 'weapon slot'){
-                if (x>=935 && x<=1025 && y>=50 && y<=140){
+                if (x>=945 && x<=1035 && y>=60 && y<=150){
                     this.move = true
                     character.weapon = 'fists'
+                }
+            }
+            else if (this.slotX == 'armor slot'){
+                if (x>=635 && x<=720 && y>=60 && y<=150){
+                    this.move = true
+                    character.wearing = undefined
+                    character.armor = 8
                 }
             }
             else{
@@ -327,7 +388,8 @@ class ShopItem{
         this.type = type
         this.uses = uses
         this.button = new Button(x,y+175,90,30,"Buy",24)
-        this.dmgTxt = new Txt(x+45,y+100,"Damage -- "+dmg,24)
+        if (type == 'weapon'){this.dmgTxt = new Txt(x+45,y+100,"Damage -- "+dmg,24)}
+        else{this.dmgTxt = new Txt(x+45,y+100,"Armor Class -- "+dmg,24)}
         this.nameTxt = new Txt(x+45,y-35,name,30)
         this.costTxt = new Txt(x+45,y+130,"Cost -- "+cost+" gold",24)
     }
@@ -679,10 +741,12 @@ new Room(false,true,false,false,undefined,60,undefined,undefined,new BugBear())]
 const shopItems = [new ShopItem('dagger.png',100,75,'1-6','Dagger',5,'weapon'), new ShopItem('sharpsword.png',300,75,'1-10','Sharp Sword',10,'weapon'),
 new ShopItem('morningstar.png',500,75,'2-12','Morningstar',20,'weapon'), new ShopItem('longsword.png',100,375,'3-18','Long Sword',50,'weapon'), 
 new ShopItem('battleaxe.png',300,375,'4-24','Battleaxe',125,'weapon'),new ShopItem('greatsword.png',500,375,'5-30','Great Sword',250,'weapon'),
-new ShopItem('health-potion.png',700,75,'','Health Potion(3)',15,'potion',3)]
-shopItems[6].dmgTxt = new Txt(745,175,"Heals: 5-30",24)
+new ShopItem('health-potion.png',100,75,'','Health Potion(3)',15,'potion',3), new ShopItem('leather-armor.png',100,75,10,'Leather Armor',30,'armor'),
+new ShopItem('studded-leather-armor.png',400,75,12,'Studded Leather Armor',90,'armor')]
+shopItems[6].dmgTxt = new Txt(145,175,"Heals: 5-30",24)
 const backButton = new Button(570,600,60,30,"Back",24)
 const nextButton = new Button(570,600,60,30,"Next",24)
+const shopButtons = [new Button(900,300,100,30,"Weapons",24), new Button(900,350,100,30,"Potions",24), new Button(900,400,100,30,"Armor",24)]
 var roll = Roll(4)
 var rollText = [new Txt(600,100,"Rolling for you attributes you got "+roll.rolls,24),
 new Txt(600,130,"So the 3 highest values added together comes to "+roll.total,24),new Txt(600,160,"Where would you like to assign your value of "+roll.total+"?",24)]
@@ -828,9 +892,20 @@ function update(){
         }
     }
     else if (page == 'shop'){
+        for (let i=0; i<shopButtons.length; i++){shopButtons[i].blit()}
         backButton.blit()
-        for (let i=0; i<shopItems.length; i++){
-            shopItems[i].draw()
+        if (showShopItems == 'weapon'){
+            for (let i=0; i<6; i++){
+                shopItems[i].draw()
+            }
+        }
+        if (showShopItems == 'potion'){
+            shopItems[6].draw()
+        }
+        if (showShopItems == 'armor'){
+            for (let i=7; i<shopItems.length; i++){
+                shopItems[i].draw()
+            }
         }
         ctx.fillStyle = '#ffffff'
         ctx.font = '24px Arial'
@@ -1011,9 +1086,33 @@ window.addEventListener('click', function(e){
         }
     }
     else if (page == 'shop'){
-        const clicked = backButton.wasClicked(e)
-        if (clicked == true){page = 'town'}
-        shopItems.find((b) => b.wasClick(e))
+        const clickedBack = backButton.wasClicked(e)
+        if (clickedBack == true){page = 'town'}
+        const clicked = shopButtons.find((b) => b.wasClicked(e))
+        if (clicked != undefined){
+            if (clicked.text == 'Weapons'){
+                showShopItems = 'weapon'
+            }
+            if (clicked.text == 'Potions'){
+                showShopItems = 'potion'
+            }
+            if (clicked.text == 'Armor'){
+                showShopItems = 'armor'
+            }
+        }
+        if (showShopItems == 'weapon'){
+            for (let i=0; i<6; i++){
+                shopItems[i].wasClick(e)
+            }
+        }
+        if (showShopItems == 'potion'){
+            shopItems[6].wasClick(e)
+        }
+        if (showShopItems == 'armor'){
+            for (let i=7; i<shopItems.length; i++){
+                shopItems[i].wasClick(e)
+            }
+        }
     }
     else if (page == 'dungeon'){
         const clicked = mainButtons.find((b) => b.wasClicked(e))
@@ -1224,7 +1323,6 @@ window.addEventListener('keydown', function(e){
     if (page == 'game over'){
         if (e.key == 'r'){
             page = 'start'
-            console.log(page)
             room = 0
             dead = false
             mustRoll = 8
