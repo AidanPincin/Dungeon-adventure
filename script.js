@@ -38,24 +38,6 @@ class Character{
         this.weapon = 'fists'
         this.healthPotions = 0
         this.potions = 0
-        //testing
-        this.strength = 10
-        this.intelligence = 10
-        this.dexterity = 10
-        this.constitution = 10
-        this.wisdom = 10
-        this.perception = 10
-        this.charisma = 10
-        this.hp = 30
-        this.max_hp = 30
-        this.gold = 75
-        this.strengthBonus = 0
-        this.intelligenceBonus = 0
-        this.dexterityBonus = 0
-        this.constitutionBonus = 0
-        this.wisdomBonus = 0
-        this.perceptionBonus = 0
-        this.charismaBonus = 0
     }
     blit(){
         try{
@@ -258,6 +240,12 @@ class Item{
                         }
                         if (this.src == 'scale-mail-armor.png'){
                             setTimeout(() => {character.armor = 13}, 0)
+                        }
+                        if (this.src == 'plate-mail-armor.png'){
+                            setTimeout(() => {character.armor = 15}, 0)
+                        }
+                        if (this.src == 'chain-mail-armor.png'){
+                            setTimeout(() => {character.armor = 14}, 0)
                         }
                     }
                     this.move = false
@@ -749,7 +737,8 @@ new ShopItem('morningstar.png',500,75,'2-12','Morningstar',20,'weapon'), new Sho
 new ShopItem('battleaxe.png',300,375,'4-24','Battleaxe',125,'weapon'),new ShopItem('greatsword.png',500,375,'5-30','Great Sword',250,'weapon'),
 new ShopItem('health-potion.png',100,75,'','Health Potion(3)',15,'potion',3), new ShopItem('leather-armor.png',400,75,11,'Leather Armor',60,'armor'),
 new ShopItem('studded-leather-armor.png',700,75,12,'Studded Leather Armor',90,'armor'), new ShopItem('scale-mail-armor.png',100,375,13,"Scale Mail Armor",200,'armor'), 
-new ShopItem('cloth-armor.png',100,75,10,'Cloth Armor',30,'armor')]
+new ShopItem('cloth-armor.png',100,75,10,'Cloth Armor',30,'armor'), new ShopItem('plate-mail-armor.png',700,375,15,'Plate Mail Armor',800,'armor'),
+new ShopItem('chain-mail-armor.png',400,375,14,'Chain Mail Armor',400,'armor')]
 shopItems[6].dmgTxt = new Txt(145,175,"Heals: 5-30",24)
 const backButton = new Button(570,600,60,30,"Back",24)
 const nextButton = new Button(570,600,60,30,"Next",24)
