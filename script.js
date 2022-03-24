@@ -1,6 +1,6 @@
 const canvas = document.querySelector('canvas')
 const ctx = canvas.getContext('2d')
-var page = 'town'
+var page = 'start'
 var instructionsPage = false
 var inInventory = false
 var inMenu = false
