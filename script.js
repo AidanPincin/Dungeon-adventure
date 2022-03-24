@@ -144,12 +144,10 @@ class Backpack{
             this.items[i].draw()
         }
     }
-    addItem(img, slot){
-        if (typeof slot != 'number') {
-            const possibleSlots = [...Array(this.slotCount).keys()].filter(i => this.items.every(item => item.slot !== i))
-            slot = Math.min(...possibleSlots)
-        }
-        this.items.push(new Item(img,slot))
+    addItem(img,type){
+        const possibleSlots = [...Array(this.slotCount).keys()].filter(i => this.items.every(item => item.slot !== i))
+        var slot = Math.min(...possibleSlots)
+        this.items.push(new Item(img,slot,type))
     }
     removeItem(img){
         const slot = this.items.findIndex(item => item.img = img)
@@ -170,7 +168,7 @@ function getSlot(e){
     }
 }
 class Item{
-    constructor(img,slot){
+    constructor(img,slot,type){
         this.img = new Image()
         this.img.src = img
         this.src = img
@@ -179,6 +177,7 @@ class Item{
         this.slotY = 0
         this.move = false
         this.time = 250
+        this.type = type
         while (this.slotX>4){
             this.slotX -= 5
             this.slotY += 1
@@ -202,9 +201,10 @@ class Item{
         if (this.move == true){
             const slot = getSlot(e)
             if (slot != undefined){
-                if (slot.slotX != 'weapon slot' || this.src != 'health-potion.png'){
+                if (slot.slotX != 'weapon slot' || this.type == 'weapon'){
                     this.slotX = slot.slotX
                     this.slotY = slot.slotY
+                    this.slot = this.slotX + this.slotY*5
                     if (slot.slotX == 'weapon slot'){
                         setTimeout(() => {character.weapon = this.src}, 0)
                     }
@@ -222,6 +222,7 @@ class Item{
             else{
                 if (x>=this.slotX*90+185 && x<=this.slotX*90+275 && y>=this.slotY*90+60 && y<=this.slotY*90+150){
                     this.move = true
+                    this.slot = undefined
                 }
             }
         }
@@ -316,13 +317,14 @@ class Txt{
     }
 }
 class ShopItem{
-    constructor(img,x,y,dmg,name,cost,uses=1){
+    constructor(img,x,y,dmg,name,cost,type,uses=1){
         this.img = new Image()
         this.src = img
         this.img.src = img
         this.x = x
         this.cost = cost
         this.y = y
+        this.type = type
         this.uses = uses
         this.button = new Button(x,y+175,90,30,"Buy",24)
         this.dmgTxt = new Txt(x+45,y+100,"Damage -- "+dmg,24)
@@ -341,7 +343,7 @@ class ShopItem{
         const clicked = this.button.wasClicked(e)
         if (clicked == true){
             if (character.gold>=this.cost && backpack.items.length<=25-this.uses){
-                for (let i=0; i<this.uses; i++){backpack.addItem(this.src)}
+                for (let i=0; i<this.uses; i++){backpack.addItem(this.src,this.type)}
                 if (this.src == 'health-potion.png'){
                     character.healthPotions += 3
                     character.potions += 3
@@ -674,10 +676,10 @@ new Room(false,false,true,false,undefined,undefined,54,undefined,new Slime()), n
 new Room(false,true,false,false,undefined,53), new Room(true,false,true,true,59,undefined,60,53),    //58
 new Room(false,true,false,false,undefined,58), new Room(true,false,false,true,61,undefined,undefined,58),   //60
 new Room(false,true,false,false,undefined,60,undefined,undefined,new BugBear())]  //61
-const shopItems = [new ShopItem('dagger.png',100,75,'1-6','Dagger',5), new ShopItem('sharpsword.png',300,75,'1-10','Sharp Sword',10),
-new ShopItem('morningstar.png',500,75,'2-12','Morningstar',20), new ShopItem('longsword.png',100,375,'3-18','Long Sword',50), 
-new ShopItem('battleaxe.png',300,375,'4-24','Battleaxe',125),new ShopItem('greatsword.png',500,375,'5-30','Great Sword',250),
-new ShopItem('health-potion.png',700,75,'','Health Potion(3)',15,3)]
+const shopItems = [new ShopItem('dagger.png',100,75,'1-6','Dagger',5,'weapon'), new ShopItem('sharpsword.png',300,75,'1-10','Sharp Sword',10,'weapon'),
+new ShopItem('morningstar.png',500,75,'2-12','Morningstar',20,'weapon'), new ShopItem('longsword.png',100,375,'3-18','Long Sword',50,'weapon'), 
+new ShopItem('battleaxe.png',300,375,'4-24','Battleaxe',125,'weapon'),new ShopItem('greatsword.png',500,375,'5-30','Great Sword',250,'weapon'),
+new ShopItem('health-potion.png',700,75,'','Health Potion(3)',15,'potion',3)]
 shopItems[6].dmgTxt = new Txt(745,175,"Heals: 5-30",24)
 const backButton = new Button(570,600,60,30,"Back",24)
 const nextButton = new Button(570,600,60,30,"Next",24)
