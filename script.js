@@ -1,3 +1,4 @@
+var save = window.localStorage
 const canvas = document.querySelector('canvas')
 const ctx = canvas.getContext('2d')
 var page = 'start'
@@ -762,7 +763,10 @@ var deadTxt = [new Txt(600,100,"You are dead!",24,"#ff0000"), new Txt(600,130,"B
 new Txt(600,160,"You must roll a(n) "+mustRoll+" or higher on a 20-sided die",24),new Txt(600,190,"You can be revived up to 3 times with each time getting harder to be revived",24),
 new Txt(600,220,"When you get revived you get sent back to the start of the dungeon with half of your max hitpoints(rounded up)",24)]
 const gameOverTxt = [new Txt(600,250,"Game Over!",48,'#ff0000'), new Txt(600,300,"press 'r' to restart",24)]
+var num = 0
 function update(){
+    num += 1
+    save.setItem('character', num)
     drawRect('#007d00',0,0,1200,800)
     if (page == 'game over'){for (let i=0; i<gameOverTxt.length; i++){gameOverTxt[i].blit()}}
     else if (dead == true){
@@ -1390,3 +1394,5 @@ window.addEventListener('mousemove', function(e){
     moveX = e.pageX
     moveY = e.pageY
 })
+var thing = save.getItem('character')
+console.log(thing)
