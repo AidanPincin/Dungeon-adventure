@@ -1,4 +1,4 @@
-var save = window.localStorage
+var save = Window.localStorage
 const canvas = document.querySelector('canvas')
 const ctx = canvas.getContext('2d')
 var page = 'start'
