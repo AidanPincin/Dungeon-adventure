@@ -247,11 +247,17 @@ class Item{
                     this.slot = this.slotX + this.slotY*5
                     if (this.slotX == 'armor slot'){
                         setTimeout(() => {character.wearing = this.src}, 0)
-                        if (this.src == 'leather-armor.png'){
+                        if (this.src == 'cloth-armor.png'){
                             setTimeout(() => {character.armor = 10}, 0)
+                        }
+                        if (this.src == 'leather-armor.png'){
+                            setTimeout(() => {character.armor = 11}, 0)
                         }
                         if (this.src == 'studded-leather-armor.png'){
                             setTimeout(() => {character.armor = 12}, 0)
+                        }
+                        if (this.src == 'scale-mail-armor.png'){
+                            setTimeout(() => {character.armor = 13}, 0)
                         }
                     }
                     this.move = false
@@ -741,8 +747,9 @@ new Room(false,true,false,false,undefined,60,undefined,undefined,new BugBear())]
 const shopItems = [new ShopItem('dagger.png',100,75,'1-6','Dagger',5,'weapon'), new ShopItem('sharpsword.png',300,75,'1-10','Sharp Sword',10,'weapon'),
 new ShopItem('morningstar.png',500,75,'2-12','Morningstar',20,'weapon'), new ShopItem('longsword.png',100,375,'3-18','Long Sword',50,'weapon'), 
 new ShopItem('battleaxe.png',300,375,'4-24','Battleaxe',125,'weapon'),new ShopItem('greatsword.png',500,375,'5-30','Great Sword',250,'weapon'),
-new ShopItem('health-potion.png',100,75,'','Health Potion(3)',15,'potion',3), new ShopItem('leather-armor.png',100,75,10,'Leather Armor',30,'armor'),
-new ShopItem('studded-leather-armor.png',400,75,12,'Studded Leather Armor',90,'armor')]
+new ShopItem('health-potion.png',100,75,'','Health Potion(3)',15,'potion',3), new ShopItem('leather-armor.png',400,75,11,'Leather Armor',60,'armor'),
+new ShopItem('studded-leather-armor.png',700,75,12,'Studded Leather Armor',90,'armor'), new ShopItem('scale-mail-armor.png',100,375,13,"Scale Mail Armor",200,'armor'), 
+new ShopItem('cloth-armor.png',100,75,10,'Cloth Armor',30,'armor')]
 shopItems[6].dmgTxt = new Txt(145,175,"Heals: 5-30",24)
 const backButton = new Button(570,600,60,30,"Back",24)
 const nextButton = new Button(570,600,60,30,"Next",24)
